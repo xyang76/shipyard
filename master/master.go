@@ -2,6 +2,7 @@ package master
 
 import (
 	"Mix/config"
+	"Mix/dlog"
 	"Mix/genericsmrproto"
 	"Mix/masterproto"
 	"flag"
@@ -52,6 +53,7 @@ func Start() {
 	if err != nil {
 		log.Fatal("Master listen error:", err)
 	}
+	log.Printf("[MASTER] listening on 0.0.0.0:%d", *config.MasterPort)
 
 	go master.run()
 
@@ -116,6 +118,8 @@ func (master *Master) run() {
 }
 
 func (master *Master) Register(args *masterproto.RegisterArgs, reply *masterproto.RegisterReply) error {
+	dlog.Info("[MASTER] Register called from replica addr=%s port=%d",
+		args.Addr, args.Port)
 
 	master.lock.Lock()
 	defer master.lock.Unlock()
