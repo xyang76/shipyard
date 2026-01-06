@@ -135,7 +135,6 @@ func registerWithMaster(masterAddr string) (int, []string) {
 				done = true
 				break
 			}
-			dlog.Info("Dialing master success")
 		} else {
 			dlog.Info("Dialing master failed:%v", err)
 		}
