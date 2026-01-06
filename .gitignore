@@ -1,0 +1,17 @@
+cat <<EOF > .gitignore
+# Go build artifacts
+bin/
+*.exe
+*.out
+
+# Go test cache
+*.test
+
+# Editor files
+.vscode/
+.idea/
+
+# Logs
+*.log
+EOF
+
