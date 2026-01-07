@@ -36,6 +36,7 @@ var ReplyReceiveTimeout *int = flag.Int("rrt", 5000, "Since leader may crash, lo
 
 const CHAN_BUFFER_SIZE = 500000
 const LOG_SIZE = 512 * 1024
+const PAXOS_LOG_SIZE = 1024 * 1024
 const TRUE = uint8(1)
 const FALSE = uint8(0)
 

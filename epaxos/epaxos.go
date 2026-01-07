@@ -149,7 +149,7 @@ func NewReplica(id int, peerAddrList []string, thrifty bool, exec bool, dreply b
 	r.Durable = durable
 
 	for i := 0; i < r.N; i++ {
-		r.InstanceSpace[i] = make([]*Instance, 2*1024*1024)
+		r.InstanceSpace[i] = make([]*Instance, config.PAXOS_LOG_SIZE)
 		r.crtInstance[i] = 0
 		r.ExecedUpTo[i] = -1
 		r.conflicts[i] = make(map[state.Key]int32, HT_INIT_SIZE)
