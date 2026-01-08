@@ -418,7 +418,7 @@ func (r *Replica) needBalance(shard int32, apportion int32) bool {
 }
 
 func (r *Replica) runBalance(shard int32, leaderId int32, apportion int32, skiff *Skiff) {
-	if r.apportion.NeedBalance(int(apportion)) && !r.balancing {
+	if config.Auto_Balance && r.apportion.NeedBalance(int(apportion)) && !r.balancing {
 		r.balancing = true
 		dlog.Info("rep:%v-shard:%v need balance {received leader:%v-app:%v vs cur:%v}", r.Id, shard, leaderId, decodeApportion(int(apportion)), skiff.currentApportion)
 		time.AfterFunc(time.Duration(*config.TokenRegenerate)*time.Millisecond, func() {
