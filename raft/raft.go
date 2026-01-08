@@ -27,6 +27,7 @@ type Replica struct {
 	role    RaftState
 	peerIds []int32
 	mu      sync.Mutex
+	replymu sync.Mutex
 
 	requestVoteChan        chan fastrpc.Serializable
 	appendEntriesChan      chan fastrpc.Serializable
@@ -840,6 +841,9 @@ func (r *Replica) executeCommands() {
 }
 
 func (r *Replica) proceedRead(execute bool) {
+	r.replymu.Lock()
+	defer r.replymu.Unlock()
+
 	r.mu.Lock()
 	reads := r.pendingReads      // copy the slice reference
 	commitIndex := r.commitIndex // snapshot commit index

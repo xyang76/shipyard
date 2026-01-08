@@ -30,6 +30,7 @@ type ShardedRaft struct {
 	peerIds []int32
 	shard   int32
 	mu      sync.Mutex
+	replymu sync.Mutex
 
 	// pre-allocated log
 	//log             []raft.LogEntry
@@ -757,6 +758,9 @@ func (r *ShardedRaft) handleRWPropose(propose *genericsmr.Propose) {
 }
 
 func (r *ShardedRaft) proceedRead(execute bool) {
+	r.replymu.Lock()
+	defer r.replymu.Unlock()
+
 	r.mu.Lock()
 	reads := r.pendingReads      // copy the slice reference
 	commitIndex := r.commitIndex // snapshot commit index
