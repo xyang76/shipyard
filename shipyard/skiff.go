@@ -33,6 +33,7 @@ type Skiff struct {
 	peerIds []int32
 	shard   int32
 	mu      sync.Mutex
+	replymu sync.Mutex
 
 	// pre-allocated log
 	//log             []LogEntry
@@ -643,6 +644,9 @@ func (r *Skiff) updateCommitIndex() {
 }
 
 func (r *Skiff) proceedRead(execute bool) {
+	r.replymu.Lock()
+	defer r.replymu.Unlock()
+
 	r.mu.Lock()
 	reads := r.pendingReads      // copy the slice reference
 	commitIndex := r.commitIndex // snapshot commit index
