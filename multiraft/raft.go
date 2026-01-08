@@ -725,11 +725,16 @@ func (r *ShardedRaft) handleRWPropose(propose *genericsmr.Propose) {
 		}
 	}
 
+	needReplicate := lastWriteIndex > r.commitIndex
+	needRead := lastWriteIndex == r.commitIndex
 	r.mu.Unlock()
 
 	// Only replicate if we actually appended writes
-	if lastWriteIndex > r.commitIndex {
+	if needReplicate {
 		r.leaderAppendEntries()
+	}
+	if needRead {
+		r.proceedRead(r.replica.Dreply)
 	}
 }
 

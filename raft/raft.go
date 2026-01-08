@@ -672,11 +672,15 @@ func (r *Replica) handleRWPropose(propose *genericsmr.Propose) {
 	}
 
 	needReplicate := lastWriteIndex > r.commitIndex
+	needRead := lastWriteIndex == r.commitIndex
 	r.mu.Unlock()
 
 	// Trigger replication only if writes were appended
 	if needReplicate {
 		r.logAppendChan <- struct{}{}
+	}
+	if needRead {
+		r.proceedRead(r.Dreply)
 	}
 }
 
