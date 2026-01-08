@@ -503,7 +503,7 @@ func (r *Skiff) leaderAppendEntries() {
 		if ni >= r.log.Size() {
 			continue
 		}
-		end := min(r.log.Size(), ni+config.MAX_BATCH)
+		end := min(r.log.Size(), ni+int32(config.MAX_BATCH))
 		entries := r.log.Slice(ni, end)
 
 		args := &AppendEntriesArgs{

@@ -471,7 +471,7 @@ func (r *ShardedRaft) leaderAppendEntries() {
 			prevLogTerm = r.log.Get(prevLogIndex).Term
 		}
 		// Limit entries: r.log[ni : ni+MAX_BATCH]
-		end := min(r.log.Size(), ni+config.MAX_BATCH)
+		end := min(r.log.Size(), ni+int32(config.MAX_BATCH))
 		entries := r.log.Slice(ni, end)
 
 		args := &raft.AppendEntriesArgs{
