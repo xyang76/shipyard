@@ -4,6 +4,7 @@ import (
 	"Mix/config"
 	"Mix/genericsmrproto"
 	"Mix/masterproto"
+	"Mix/shard"
 	"Mix/state"
 	"flag"
 	"fmt"
@@ -40,7 +41,8 @@ func StartPaxosClient2() {
 		log.Fatalf("GetReplicaList failed: %v\n", err)
 	}
 
-	replyTime := NewReplyTime(*rounds, *reqsNum / *rounds)
+	shards := shard.NewShardInfo()
+	replyTime := NewReplyTime(*rounds, *reqsNum / *rounds, shards)
 	client := NewPaxosClient(rlReply.ReplicaList, replyTime, *noLeader)
 
 	// --- generate requests ---
@@ -120,7 +122,7 @@ func StartPaxosClient2() {
 		elapsed := last - startTime.UnixNano()
 		elapsed_sum += elapsed
 		fmt.Printf("Round %d finished: total success=%d of %d/%d, elapsed=%v\n",
-			round, client.success, replyTime.replyArrivals[round], n, time.Duration(elapsed))
+			round, client.success, replyTime.roundArrivals[round], n, time.Duration(elapsed))
 	}
 
 	after_total := time.Now()

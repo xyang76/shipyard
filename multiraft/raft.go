@@ -505,7 +505,9 @@ func (r *ShardedRaft) leaderAppendEntries() {
 		//if len(entries) > 0 {
 		//	dlog.EC.Count("AppendEntries", "%v leader appends", r.getShardInfo())
 		//}
+		r.mu.Lock()
 		r.nextIndex[peerId] = end - 1
+		r.mu.Unlock()
 		r.replica.SendMsg(peerId, r.replica.appendEntryRPC, args)
 	}
 }
@@ -568,7 +570,7 @@ func (r *ShardedRaft) executeCommands() {
 	for !r.replica.Shutdown {
 		applied := false
 
-		for r.lastApplied < r.commitIndex {
+		for r.lastApplied < r.commitIndex && r.lastApplied+1 < r.log.Size() {
 			dlog.Print("%d applied to %d -> %d, log is %d", r.Id, r.lastApplied, r.commitIndex, r.log.Size())
 			r.lastApplied++
 			idx := r.lastApplied

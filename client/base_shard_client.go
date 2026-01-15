@@ -27,12 +27,15 @@ type ReplyTime struct {
 	round         int
 	numReqs       int
 	replyTimes    []int64
-	replyIds      []int32
-	replyArrivals []int64
+	shardArrival  []int64
+	roundArrivals []int64
+	skipped       map[int32]int64
+	send          map[int32]int64
 	done          []chan bool
+	shards        *shard.ShardInfo
 }
 
-func NewReplyTime(round int, numReqs int) *ReplyTime {
+func NewReplyTime(round int, numReqs int, shards *shard.ShardInfo) *ReplyTime {
 	done := make([]chan bool, round)
 	for i := 0; i < round; i++ {
 		done[i] = make(chan bool, 1) // buffered, so sending doesn't block
@@ -41,18 +44,27 @@ func NewReplyTime(round int, numReqs int) *ReplyTime {
 		round:         round,
 		numReqs:       numReqs,
 		replyTimes:    make([]int64, round),
-		replyIds:      make([]int32, round),
-		replyArrivals: make([]int64, round),
+		shardArrival:  make([]int64, shards.ShardNum),
+		roundArrivals: make([]int64, round),
+		skipped:       make(map[int32]int64),
+		send:          make(map[int32]int64),
 		done:          done,
+		shards:        shards,
 	}
+}
+
+func (rt *ReplyTime) OnShardLeaderReset(sid int32) {
+	atomic.StoreInt64(&rt.shardArrival[sid], 0)
+	rt.send[sid] = 0
 }
 
 func (rt *ReplyTime) ReplyArrival(reply *genericsmrproto.ProposeReplyTS) {
 	r := int(reply.CommandId) / rt.numReqs
+	key := state.Key(reply.CommandId)
+	sid, _ := rt.shards.GetShardId(key)
 	atomic.StoreInt64(&rt.replyTimes[r], time.Now().UnixNano())
-	arrivals := atomic.AddInt64(&rt.replyArrivals[r], 1)
-	lastId := atomic.LoadInt32(&rt.replyIds[r])
-	atomic.StoreInt32(&rt.replyIds[r], max(lastId, reply.CommandId))
+	arrivals := atomic.AddInt64(&rt.roundArrivals[r], 1)
+	atomic.AddInt64(&rt.shardArrival[sid], 1)
 	if arrivals == int64(rt.numReqs) {
 		select {
 		case rt.done[r] <- true:
@@ -162,6 +174,7 @@ func (c *ShardClient) findLeader(sid int32) *ShardConn {
 
 			c.mu.Lock()
 			c.leaders[sid] = sc
+			c.replyTime.OnShardLeaderReset(sid)
 			c.mu.Unlock()
 
 			go c.replyReader(sid, sc)
@@ -172,6 +185,84 @@ func (c *ShardClient) findLeader(sid int32) *ShardConn {
 	}
 
 	return nil
+}
+
+func (c *ShardClient) findLeaderAsync(sid int32, finishChan chan struct{}) {
+	var wg sync.WaitGroup
+
+	for _, addr := range c.replicas {
+		addr := addr // capture loop variable
+		wg.Add(1)
+
+		go func() {
+			conn, err := net.DialTimeout("tcp", addr, genericsmr.CONN_TIMEOUT)
+			if err != nil {
+				return
+			}
+
+			r := bufio.NewReader(conn)
+			w := bufio.NewWriter(conn)
+
+			args := genericsmrproto.Propose{
+				CommandId: config.IdentifyLeader,
+				Command: state.Command{
+					Op: state.GET,
+					K:  state.Key(sid),
+				},
+			}
+
+			err = genericsmr.WriteWithTimeout(conn, func() error {
+				if err := w.WriteByte(genericsmrproto.PROPOSE); err != nil {
+					return err
+				}
+				args.Marshal(w)
+				return w.Flush()
+			})
+			if err != nil {
+				conn.Close()
+				return
+			}
+
+			reply := new(genericsmrproto.ProposeReplyTS)
+			err = genericsmr.ReadWithTimeout(conn, func() error {
+				return reply.Unmarshal(r)
+			})
+			if err != nil {
+				conn.Close()
+				return
+			}
+
+			if reply.OK != 0 {
+				sc := &ShardConn{
+					conn:   conn,
+					reader: r,
+					writer: w,
+				}
+
+				// ---- install leader if none exists ----
+				c.mu.Lock()
+				if _, exists := c.leaders[sid]; !exists {
+					c.leaders[sid] = sc
+					c.replyTime.OnShardLeaderReset(sid)
+					c.mu.Unlock()
+
+					fmt.Printf("Leader for shard %d found at %s\n", sid, addr)
+					go c.replyReader(sid, sc)
+
+					return
+				}
+				c.mu.Unlock()
+			}
+
+			conn.Close()
+		}()
+	}
+
+	// Notify when all goroutines are done
+	go func() {
+		wg.Wait()
+		close(finishChan)
+	}()
 }
 
 func (c *ShardClient) replyReader(sid int32, sc *ShardConn) {
@@ -236,6 +327,28 @@ func (c *ShardClient) FlushAll() {
 	}
 }
 
+//if leader == nil {
+//	// Start leader discovery only if not already searching
+//	if !searching {
+//		c.mu.Lock()
+//		c.searching[sid] = true
+//		c.mu.Unlock()
+//
+//		go func() {
+//			l := c.findLeader(sid)
+//			c.mu.Lock()
+//			c.searching[sid] = false
+//			if l == nil {
+//				delete(c.leaders, sid)
+//			}
+//			c.mu.Unlock()
+//		}()
+//	}
+//
+//	atomic.AddInt64(&c.skipped, 1)
+//	return
+//}
+
 func (c *ShardClient) NonBlockSend(reqID int32, key state.Key, op state.Operation, value state.Value) {
 	sid, _ := c.shards.GetShardId(key)
 
@@ -251,13 +364,22 @@ func (c *ShardClient) NonBlockSend(reqID int32, key state.Key, op state.Operatio
 			c.searching[sid] = true
 			c.mu.Unlock()
 
+			finishChan := make(chan struct{})
+
 			go func() {
-				l := c.findLeader(sid)
+				c.findLeaderAsync(sid, finishChan)
+
+				// Wait for discovery to finish
+				<-finishChan
+
 				c.mu.Lock()
 				c.searching[sid] = false
-				if l == nil {
+
+				// If still no leader after probing, clean up
+				if _, ok := c.leaders[sid]; !ok {
 					delete(c.leaders, sid)
 				}
+
 				c.mu.Unlock()
 			}()
 		}

@@ -72,7 +72,5 @@ type BalanceArgs struct {
 
 type BalanceReply struct {
 	Token bool
-
-	OK    bool
 	Shard int32
 }

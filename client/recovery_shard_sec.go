@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/rpc"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -45,7 +46,7 @@ func StartRecoveryShardClientSec() {
 	writePercent := *writes
 	turns := 100
 	shards := shard.NewShardInfo()
-	replyTime := NewReplyTime(turns, batch)
+	replyTime := NewReplyTime(turns, batch, shards)
 	client := NewShardClient(rl.ReplicaList, shards, replyTime)
 
 	// initial leaders
@@ -55,18 +56,21 @@ func StartRecoveryShardClientSec() {
 
 	// success report
 	last := int64(0)
-	go func() {
-		t := time.NewTicker(2 * time.Second)
-		for range t.C {
-			fmt.Printf("Success so far: %d, this round %d\n", client.Success(), client.success-last)
-			last = client.success
-		}
-	}()
-
 	reqID := int32(0)
 	ticker := time.NewTicker(1 * time.Second)
 	start := time.Now()
-	skipped := make(map[int32]int32)
+	mu := sync.Mutex{}
+
+	go func(reply *ReplyTime) {
+		t := time.NewTicker(2 * time.Second)
+		for range t.C {
+			mu.Lock()
+			fmt.Printf("Success so far: %d, this round %d, skipped:%v, send:%v\n",
+				client.Success(), client.success-last, countTotal(reply.skipped), countTotal(reply.send))
+			last = client.success
+			mu.Unlock()
+		}
+	}(replyTime)
 
 	for i := 0; i < turns; i++ {
 		<-ticker.C
@@ -74,11 +78,14 @@ func StartRecoveryShardClientSec() {
 			key := state.Key(int(reqID))
 			sid, _ := client.shards.GetShardId(key)
 
-			lastId := atomic.LoadInt32(&replyTime.replyIds[sid])
-
-			if reqID-lastId-skipped[sid] > config.CHAN_BUFFER_SIZE/2 {
-				skipped[sid]++
+			mu.Lock()
+			arrived := atomic.LoadInt64(&replyTime.shardArrival[sid])
+			if replyTime.send[sid]-arrived >= config.CHAN_BUFFER_SIZE/2 {
+				replyTime.skipped[sid]++
+				mu.Unlock()
 			} else {
+				replyTime.send[sid]++
+				mu.Unlock()
 				operation := client.RandomValue()
 				if operation <= writePercent {
 					client.NonBlockSend(reqID, key, state.PUT, state.Value(reqID))
@@ -99,4 +106,15 @@ func StartRecoveryShardClientSec() {
 
 	fmt.Printf("Finished. success=%d time=%v\n",
 		client.Success(), time.Since(start))
+}
+
+func countTotal(m map[int32]int64) string {
+	str := "["
+	total := int64(0)
+	for k, v := range m {
+		str += fmt.Sprintf("%d:%d,", k, v)
+		total += v
+	}
+	str += fmt.Sprintf(", total = %d]", total)
+	return str
 }

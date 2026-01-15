@@ -1003,14 +1003,6 @@ func (t *BalanceReply) Marshal(wire io.Writer) {
 	}
 	wire.Write(b1[:1])
 
-	// write OK (1 byte)
-	if t.OK {
-		b1[0] = byte(1)
-	} else {
-		b1[0] = byte(0)
-	}
-	wire.Write(b1[:1])
-
 	// write Shard (4 bytes)
 	bs = b[:4]
 	tmp32 = t.Shard
@@ -1034,12 +1026,6 @@ func (t *BalanceReply) Unmarshal(rr io.Reader) error {
 		return err
 	}
 	t.Token = (b1[0] != 0)
-
-	// read OK
-	if _, err := io.ReadAtLeast(wire, b1[:], 1); err != nil {
-		return err
-	}
-	t.OK = (b1[0] != 0)
 
 	// read Shard
 	var b4 [4]byte

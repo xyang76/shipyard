@@ -793,7 +793,7 @@ func (r *Replica) executeCommands() {
 	for !r.Shutdown {
 		applied := false
 
-		for r.lastApplied < r.commitIndex {
+		for r.lastApplied < r.commitIndex && r.lastApplied+1 < r.log.Size() {
 			dlog.Print("%d applied to %d -> %d, log is %d", r.Id, r.lastApplied, r.commitIndex, r.log.Size())
 			r.lastApplied++
 			idx := r.lastApplied

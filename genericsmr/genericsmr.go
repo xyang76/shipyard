@@ -172,9 +172,9 @@ func (r *Replica) ConnectToPeers() {
 
 func (r *Replica) reconnectPeer(peerId int32) {
 	for !r.Shutdown {
-		if r.Id > peerId {
-			return
-		}
+		//if r.Id > peerId {
+		//	return
+		//}
 
 		dlog.Print("%d: attempting reconnect to peer %d", r.Id, peerId)
 
@@ -328,70 +328,6 @@ func (r *Replica) WaitForClientConnections() {
 		}
 		go r.clientListener(conn)
 		r.OnClientConnect <- true
-	}
-}
-
-func (r *Replica) replicaListener(rid int, reader *bufio.Reader) {
-	var msgType uint8
-	var err error = nil
-	var gbeacon genericsmrproto.Beacon
-	var gbeaconReply genericsmrproto.BeaconReply
-
-	for err == nil && !r.Shutdown {
-		if reader == nil {
-			time.Sleep(10 * time.Millisecond)
-			continue
-		}
-
-		if msgType, err = reader.ReadByte(); err != nil {
-			break
-		}
-
-		switch uint8(msgType) {
-
-		case genericsmrproto.GENERIC_SMR_BEACON:
-			if err = gbeacon.Unmarshal(reader); err != nil {
-				break
-			}
-			beacon := &Beacon{int32(rid), gbeacon.Timestamp}
-			r.BeaconChan <- beacon
-			break
-
-		case genericsmrproto.GENERIC_SMR_BEACON_REPLY:
-			if err = gbeaconReply.Unmarshal(reader); err != nil {
-				break
-			}
-			//TODO: UPDATE STUFF
-			r.Ewma[rid] = 0.99*r.Ewma[rid] + 0.01*float64(rdtsc.Cputicks()-gbeaconReply.Timestamp)
-			log.Println(r.Ewma)
-			break
-
-		default:
-			if rpair, present := r.rpcTable[msgType]; present {
-				obj := rpair.Obj.New()
-				if err = obj.Unmarshal(reader); err != nil {
-					break
-				}
-				rpair.Chan <- obj
-			} else {
-				// STREAM DESYNC → CLOSE CONNECTION
-				dlog.Info("%d<-%d protocol error: unknown msgType=%d, closing connection",
-					r.Id, rid, msgType)
-				err = io.ErrUnexpectedEOF
-				break
-			}
-		}
-	}
-
-	if !r.Shutdown {
-		dlog.Info("%d: lost connection to peer %d", r.Id, rid)
-		r.Alive[rid] = false
-
-		if r.Peers[rid] != nil {
-			r.Peers[rid].Close()
-		}
-
-		go r.reconnectPeer(int32(rid))
 	}
 }
 
@@ -579,6 +515,7 @@ func (r *Replica) SendMsg(peerId int32, code uint8, msg fastrpc.Serializable) {
 	w := r.PeerWriters[peerId]
 
 	if conn == nil || w == nil || !r.Alive[peerId] {
+		dlog.Print("%d->%d connection is lost, [%v, %v, %v]", r.Id, peerId, conn == nil, w == nil, !r.Alive[peerId])
 		return
 	}
 
@@ -595,6 +532,70 @@ func (r *Replica) SendMsg(peerId int32, code uint8, msg fastrpc.Serializable) {
 	}
 }
 
+func (r *Replica) replicaListener(rid int, reader *bufio.Reader) {
+	var msgType uint8
+	var err error = nil
+	var gbeacon genericsmrproto.Beacon
+	var gbeaconReply genericsmrproto.BeaconReply
+
+	for err == nil && !r.Shutdown {
+		if reader == nil {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		if msgType, err = reader.ReadByte(); err != nil {
+			break
+		}
+
+		switch uint8(msgType) {
+
+		case genericsmrproto.GENERIC_SMR_BEACON:
+			if err = gbeacon.Unmarshal(reader); err != nil {
+				break
+			}
+			beacon := &Beacon{int32(rid), gbeacon.Timestamp}
+			r.BeaconChan <- beacon
+			break
+
+		case genericsmrproto.GENERIC_SMR_BEACON_REPLY:
+			if err = gbeaconReply.Unmarshal(reader); err != nil {
+				break
+			}
+			//TODO: UPDATE STUFF
+			r.Ewma[rid] = 0.99*r.Ewma[rid] + 0.01*float64(rdtsc.Cputicks()-gbeaconReply.Timestamp)
+			log.Println(r.Ewma)
+			break
+
+		default:
+			if rpair, present := r.rpcTable[msgType]; present {
+				obj := rpair.Obj.New()
+				if err = obj.Unmarshal(reader); err != nil {
+					break
+				}
+				rpair.Chan <- obj
+			} else {
+				// STREAM DESYNC → CLOSE CONNECTION
+				dlog.Info("%d<-%d protocol error: unknown msgType=%d, closing connection",
+					r.Id, rid, msgType)
+				err = io.ErrUnexpectedEOF
+				break
+			}
+		}
+	}
+
+	if !r.Shutdown {
+		dlog.Info("%d: lost connection to peer %d", r.Id, rid)
+		r.Alive[rid] = false
+
+		if r.Peers[rid] != nil {
+			r.Peers[rid].Close()
+		}
+
+		go r.reconnectPeer(int32(rid))
+	}
+}
+
 func (r *Replica) replicaListenerFailProne(rid int, reader *bufio.Reader) {
 	conn := r.Peers[rid]
 	if conn == nil {
@@ -606,17 +607,24 @@ func (r *Replica) replicaListenerFailProne(rid int, reader *bufio.Reader) {
 		err     error
 	)
 
-	for err == nil && !r.Shutdown {
+	for !r.Shutdown {
 		err = ReadWithTimeout(conn, func() error {
 			msgType, err = reader.ReadByte()
 			return err
 		})
 
 		if err != nil {
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+				// timeout is NOT a failure
+				continue
+			}
 			break
 		}
 
 		r.dispatchReplicaMessage(rid, msgType, reader, &err)
+		if err != nil {
+			break
+		}
 	}
 
 	r.onPeerFailure(rid)

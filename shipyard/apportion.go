@@ -2,8 +2,8 @@ package shipyard
 
 import (
 	"Mix/config"
-	"Mix/dlog"
 	"fmt"
+	"log"
 	"math/rand"
 	"time"
 
@@ -31,7 +31,9 @@ func NewApportion(replica *Replica) *Apportion {
 		lastUsage:   0,
 		lastCommand: 0,
 	}
-	app.StartTimer()
+	if config.PrintApportion {
+		app.StartTimer()
+	}
 	return app
 }
 
@@ -54,8 +56,8 @@ func (a *Apportion) StartTimer() {
 	}()
 }
 
-func encodeApportion(a *Apportion) int {
-	val := a.positiveApportion()
+func encodeApportion(val int) int {
+	//val := a.value()
 	invert := ^val & 0xFF
 	return invert
 	//return (invert << 16) | rand.Intn(len(a.replica.peerIds))*10
@@ -67,7 +69,7 @@ func decodeApportion(apportion int) int {
 	return ^apportion & 0xFF
 }
 
-func (a *Apportion) positiveApportion() int {
+func (a *Apportion) value() int {
 	switch a.typ {
 	case config.TFrequency:
 		return a.exeCommands / a.timeCount
@@ -81,15 +83,19 @@ func (a *Apportion) positiveApportion() int {
 	return 0
 }
 
-func (a *Apportion) NeedBalance(apportion int) bool {
+func (a *Apportion) IncExecuteCommand() {
+	a.exeCommands++
+}
+
+func (a *Apportion) Imbalance(apportion int) bool {
 	actualNum := decodeApportion(apportion)
 	switch a.typ {
 	case config.TFrequency:
-		return actualNum-a.threshold-a.positiveApportion() > 0
+		return actualNum-a.threshold-a.value() > 0
 	case config.TUsage:
-		return actualNum-a.threshold-a.positiveApportion() > 0
+		return actualNum-a.threshold-a.value() > 0
 	case config.TMastered:
-		return actualNum-a.positiveApportion() > 1
+		return actualNum-a.value() > 1
 	case config.TRandom:
 		return false
 	}
@@ -98,16 +104,24 @@ func (a *Apportion) NeedBalance(apportion int) bool {
 
 func (a *Apportion) executeCount() {
 	a.timeCount++
-	percentages, err := cpu.Percent(1*time.Second, false)
-	if err != nil {
-		fmt.Println("Error retrieving CPU usage:", err)
-		return
+	if a.typ == config.TUsage {
+		percentages, err := cpu.Percent(1*time.Second, false)
+		if err != nil {
+			fmt.Println("Error retrieving CPU usage:", err)
+			return
+		}
+		a.cpuUsage += int(percentages[0])
 	}
-	a.cpuUsage += int(percentages[0])
 
 	if a.timeCount%5 == 0 {
-		dlog.Print(fmt.Sprintf("%v of %v: CPU usage:%v, execute commands:%v", a.replica.Id, a.timeCount,
-			(a.cpuUsage-a.lastUsage)/5, a.exeCommands-a.lastCommand))
+		//dlog.Info("Replica%v of %v: CPU usage:%v, execute commands:%v, leading:%v", a.replica.Id, a.timeCount,
+		//	(a.cpuUsage-a.lastUsage)/5, a.exeCommands-a.lastCommand, a.replica.leadingShards)
+		now := time.Now()
+		hours := now.Hour()
+		seconds := now.Second()
+		minutes := now.Minute()
+		log.Printf("Replica%v of %v(h:%v, %v): leading:%v", a.replica.Id, a.timeCount,
+			hours, minutes*60+seconds, a.replica.leadingShards)
 		a.lastUsage = a.cpuUsage
 		a.lastCommand = a.exeCommands
 	}

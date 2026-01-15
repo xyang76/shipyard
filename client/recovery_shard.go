@@ -48,7 +48,7 @@ func StartRecoveryShardClient() {
 	round := *rounds
 	writePercent := *writes
 	reqID := int32(0)
-	replyTime := NewReplyTime(round, reqsPerRound)
+	replyTime := NewReplyTime(round, reqsPerRound, shards)
 	client := NewShardClient(rl.ReplicaList, shards, replyTime)
 
 	// initial leaders
@@ -99,9 +99,9 @@ func StartRecoveryShardClient() {
 		}
 		elapsed := last - startTime.UnixNano()
 		elapsed_sum += elapsed
-		//fmt.Printf("Round %d finished: total success=%d of %d/%d, elapsed=%v\n", r, client.Success(), replyTime.replyArrivals[r], reqsPerRound, time.Duration(elapsed))
+		//fmt.Printf("Round %d finished: total success=%d of %d/%d, elapsed=%v\n", r, client.Success(), replyTime.roundArrivals[r], reqsPerRound, time.Duration(elapsed))
 		fmt.Printf("Round %d finished: total success=%d(s:%d-f:%d) of %d/%d, elapsed=%v\n",
-			r, client.Success(), client.skipped, client.failed, replyTime.replyArrivals[r], reqsPerRound, time.Duration(elapsed))
+			r, client.Success(), client.skipped, client.failed, replyTime.roundArrivals[r], reqsPerRound, time.Duration(elapsed))
 	}
 
 	after_total := time.Now()

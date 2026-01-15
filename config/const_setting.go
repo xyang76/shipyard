@@ -50,8 +50,9 @@ var Auto_Balance = true
 
 const Max_CMD_SECOND = 50000 //
 const Read_Local = true      //For raft/shipyard, we do not need replicate reads
-const Fail_Prone = false     // Need reconnection
+const Fail_Prone = true      // Need reconnection
 const Write_Log = true
+const PrintApportion = false
 
 type Approach int
 
