@@ -28,15 +28,15 @@ var ShardStatus *bool = flag.Bool("status", false, "Show shard leading status.")
 var SeperateClientPort *bool = flag.Bool("sp", true, "Seperate client ports and peer ports.")
 
 // Raft and Shipyard
-var HeartBeatInterval *int = flag.Int("hi", 200, "Heartbeat interval in milliseconds")
-var HeartBeatTimeout *int = flag.Int("ht", 5000, "Heartbeat timeout in milliseconds")
+var HeartBeatInterval *int = flag.Int("hi", 1000, "Heartbeat interval in milliseconds")
+var HeartBeatTimeout *int = flag.Int("ht", 8000, "Heartbeat timeout in milliseconds")
 var RaftElectionInterval *int = flag.Int("et", 1000, "election timeout in milliseconds")
 var BalanceRegenerate *int = flag.Int("to", 500, "Token regeneration in milliseconds")
 var ReplyReceiveTimeout *int = flag.Int("rrt", 10000, "Since leader may crash, lost connection, we need this timeout to count elapse")
 var BatchSize *int = flag.Int("mb", 10, "max batch size")
 var AutoBalance *int = flag.Int("ab", 1, "auto balance")
 
-const CHAN_BUFFER_SIZE = 2000
+const CHAN_BUFFER_SIZE = 30000
 const LOG_SIZE = 512 * 1024
 const PAXOS_LOG_SIZE = 1024 * 1024 * 20
 const TRUE = uint8(1)
