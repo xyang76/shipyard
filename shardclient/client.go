@@ -81,13 +81,15 @@ func (cm *ClientManager) StartSingleTest() {
 	elapsed_sum := int64(0)
 	reqID := int32(0)
 	last := int64(0)
+	count := 0
 
 	go func(reply *ReplyTime) {
 		t := time.NewTicker(1 * time.Second)
 		for range t.C {
-			fmt.Printf("Success so far: %d, this round %d, skipped:%v, send:%v\n",
+			fmt.Printf("%v Success so far: %d, this round %d, skipped:%v, send:%v\n", count,
 				reply.success, reply.success-reply.lastRound, countTotal(reply.skipped), countTotal(reply.send))
 			reply.lastRound = reply.success
+			count++
 		}
 	}(replyTime)
 

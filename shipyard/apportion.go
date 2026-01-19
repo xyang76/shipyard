@@ -34,6 +34,12 @@ func NewApportion(replica *Replica) *Apportion {
 	if config.PrintApportion {
 		app.StartTimer()
 	}
+	switch app.typ {
+	case config.TFrequency:
+		app.threshold = 1000
+	case config.TUsage:
+		app.threshold = 20
+	}
 	return app
 }
 

@@ -116,6 +116,7 @@ func (r *Skiff) run() {
 			onOffProposeChan = r.proposeChan
 			break
 		case prop := <-onOffProposeChan:
+			r.replica.apportion.IncExecuteCommand()
 			if config.Read_Local {
 				r.handleRWPropose(prop)
 			} else {
