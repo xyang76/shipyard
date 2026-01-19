@@ -497,13 +497,7 @@ func (r *Replica) UpdatePreferredPeerOrder(quorum []int32) {
 
 	r.PreferredPeerOrder = aux
 }
-
-func (r *Replica) SendMsg(peerId int32, code uint8, msg fastrpc.Serializable) {
-	if !config.Fail_Prone {
-		r.SendMsgNoFail(peerId, code, msg)
-		return
-	}
-
+func (r *Replica) SendMsgFailProne(peerId int32, code uint8, msg fastrpc.Serializable) {
 	if peerId < 0 || int(peerId) >= len(r.Peers) {
 		return
 	}
@@ -530,6 +524,20 @@ func (r *Replica) SendMsg(peerId int32, code uint8, msg fastrpc.Serializable) {
 	if err != nil {
 		r.handleWriteFailure(peerId)
 	}
+}
+
+func (r *Replica) SendMsg(peerId int32, code uint8, msg fastrpc.Serializable) {
+	if !config.Fail_Prone {
+		r.SendMsgNoFail(peerId, code, msg)
+		return
+	} else {
+		if config.Fake_recovery {
+			go r.SendMsgFailProne(peerId, code, msg)
+		} else {
+			r.SendMsgFailProne(peerId, code, msg)
+		}
+	}
+
 }
 
 func (r *Replica) replicaListener(rid int, reader *bufio.Reader) {
