@@ -532,7 +532,7 @@ func (r *Replica) SendMsg(peerId int32, code uint8, msg fastrpc.Serializable) {
 		return
 	} else {
 		if config.Fake_recovery {
-			go r.SendMsgFailProne(peerId, code, msg)
+			r.SendMsgFailProne(peerId, code, msg)
 		} else {
 			r.SendMsgFailProne(peerId, code, msg)
 		}
