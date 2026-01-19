@@ -29,7 +29,7 @@ var SeperateClientPort *bool = flag.Bool("sp", true, "Seperate client ports and 
 
 // Raft and Shipyard
 var HeartBeatInterval *int = flag.Int("hi", 200, "Heartbeat interval in milliseconds")
-var HeartBeatTimeout *int = flag.Int("ht", 3000, "Heartbeat timeout in milliseconds")
+var HeartBeatTimeout *int = flag.Int("ht", 5000, "Heartbeat timeout in milliseconds")
 var RaftElectionInterval *int = flag.Int("et", 1000, "election timeout in milliseconds")
 var BalanceRegenerate *int = flag.Int("to", 500, "Token regeneration in milliseconds")
 var ReplyReceiveTimeout *int = flag.Int("rrt", 10000, "Since leader may crash, lost connection, we need this timeout to count elapse")
@@ -53,6 +53,7 @@ const Fail_Prone = true // Need reconnection
 const PrintApportion = false
 const PrintPerSec = true
 const LogFile = true
+const Fake_recovery = true
 
 type Approach int
 

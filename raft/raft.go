@@ -320,85 +320,64 @@ func (r *Replica) handleRequestVoteReply(reply *RequestVoteReply) {
 
 func (r *Replica) handleAppendEntries(args *AppendEntriesArgs) {
 	dlog.Print("%d appendEntries: %+v", r.Id, args)
-	//r.mu.Lock()
-	//defer r.mu.Unlock()
 	var reply AppendEntriesReply
-	if args.Term > r.currentTerm {
-		dlog.Print("... term out of date in AppendEntries")
-		r.becomeFollower(args.Term)
-	}
 	reply.Success = false
 	reply.LastLogIndex = r.log.Size() - 1
+
+	if args.Term > r.currentTerm {
+		r.becomeFollower(args.Term)
+	}
+
 	if args.Term == r.currentTerm {
 		if r.role != Follower {
 			r.becomeFollower(args.Term)
 		}
 		r.electionResetEvent = time.Now()
 
-		if args.PrevLogIndex == -1 ||
-			(args.PrevLogIndex < r.log.Size() && args.PrevLogTerm == r.log.Get(args.PrevLogIndex).Term) {
+		if args.PrevLogIndex == -1 || (args.PrevLogIndex < r.log.Size() && args.PrevLogTerm == r.log.Get(args.PrevLogIndex).Term) {
 			reply.Success = true
 			logInsertIndex := args.PrevLogIndex + 1
-			if *config.FastRaft == 1 {
-				size := int32(len(args.Entries))
-				r.appendFrom(args.PrevLogIndex+1, size, args.Entries)
+			newEntriesIndex := 0
+
+			for logInsertIndex < r.log.Size() && newEntriesIndex < len(args.Entries) {
+				if r.log.Get(logInsertIndex).Term != args.Entries[newEntriesIndex].Term {
+					break
+				}
+				logInsertIndex++
+				newEntriesIndex++
+			}
+
+			// fake recovery for large gap
+			latestIndex := args.PrevLogIndex + int32(len(args.Entries))
+			gap := latestIndex - r.log.Size()
+			if config.Fake_recovery && gap > 1000 {
+				r.log.SetSize(latestIndex)
+				if args.LeaderCommit > r.commitIndex {
+					r.commitIndex = min(args.LeaderCommit, r.log.Size()-1)
+				}
+			} else {
+				// append remaining entries normally
+				for i := newEntriesIndex; i < len(args.Entries); i++ {
+					r.log.Set(logInsertIndex, args.Entries[i])
+					logInsertIndex++
+				}
+				if logInsertIndex > r.log.Size() {
+					r.log.SetSize(logInsertIndex)
+				}
+
+				// update commit index
 				if args.LeaderCommit > r.commitIndex {
 					from := r.commitIndex
 					r.commitIndex = min(args.LeaderCommit, r.log.Size()-1)
-					r.commitLog(from, r.commitIndex) // can also optimize lazy apply
-				}
-			} else {
-				newEntriesIndex := 0
-				for {
-					if logInsertIndex >= r.log.Size() || newEntriesIndex >= len(args.Entries) {
-						break
-					}
-					if r.log.Get(logInsertIndex).Term != args.Entries[newEntriesIndex].Term {
-						break
-					}
-					logInsertIndex++
-					newEntriesIndex++
-				}
-				// At the end of this loop:
-				// - logInsertIndex points at the end of the log, or an index where the
-				//   term mismatches with an entry from the leader
-				// - newEntriesIndex points at the end of Entries, or an index where the
-				//   term mismatches with the corresponding log entry
-				if newEntriesIndex < len(args.Entries) {
-					dlog.Print("... inserting entries %v from index %d", args.Entries[newEntriesIndex:], logInsertIndex)
-					for i := newEntriesIndex; i < len(args.Entries); i++ {
-						r.log.Set(logInsertIndex, args.Entries[i])
-						logInsertIndex++
-					}
-
-					if logInsertIndex > r.log.Size() {
-						r.log.SetSize(logInsertIndex)
-					}
-					dlog.Print("... log is now: %v", r.log)
-
-					// Update LastLogIndex after modification
-					reply.LastLogIndex = r.log.Size() - 1
-				}
-
-				// Set commit index.
-				if args.LeaderCommit > r.commitIndex {
-					from := r.commitIndex
-					if args.LeaderCommit < r.log.Size()-1 {
-						r.commitIndex = args.LeaderCommit
-					} else {
-						r.commitIndex = r.log.Size() - 1
-					}
-					dlog.Print("... setting commitIndex=%d", r.commitIndex)
-
-					// Apply entries from old commitIndex + 1 to the new commitIndex
 					r.commitLog(from, r.commitIndex)
 				}
 			}
-
 		}
 	}
+
 	reply.FollowerId = r.Id
 	reply.Term = r.currentTerm
+	reply.LastLogIndex = r.log.Size() - 1
 	dlog.Print("AppendEntries reply: %+v", reply)
 	r.SendMsg(args.LeaderId, r.appendEntryReplyRPC, &reply)
 }

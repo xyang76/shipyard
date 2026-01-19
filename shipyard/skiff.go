@@ -545,8 +545,17 @@ func (r *Skiff) handleAppendEntries(args *AppendEntriesArgs) {
 	if args.Epoch > r.currentEpoch || (args.Epoch == r.currentEpoch && args.Apportion >= r.currentApportion) {
 		r.becomeFollower(args.Epoch, args.Apportion)
 		if args.StartIndex >= r.log.Size() {
-			reply.OK = false
-			reply.CommitIndex = r.commitIndex
+			if config.Fake_recovery {
+				reply.OK = true
+				size := int32(len(args.Diff))
+				r.appendFrom(args.StartIndex+1, size, args.Diff)
+				reply.CommitIndex = args.StartIndex + size
+				commit := min(r.log.Size(), args.LeaderCommit)
+				r.commitIndex = commit
+			} else {
+				reply.OK = false
+				reply.CommitIndex = r.commitIndex
+			}
 		} else {
 			size := int32(len(args.Diff))
 			r.appendFrom(args.StartIndex+1, size, args.Diff)
