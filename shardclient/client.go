@@ -103,6 +103,7 @@ func (cm *ClientManager) StartSingleTest() {
 
 		for i := 0; i < reqsPerRound; i++ {
 			key := state.Key(int(reqID))
+			//key := cm.shards.GetKey(l.shardID, reqID)
 			sid, _ := cm.shards.GetShardId(key)
 			if config.CurrentApproach == config.EPaxos || config.CurrentApproach == config.Mencius {
 				conflict := cm.RandomValue()

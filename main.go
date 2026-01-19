@@ -28,9 +28,13 @@ func main() {
 	} else if config.CurrentInstance == config.ClientPerSec {
 		//client.OneReq()
 		//client.StartRecoveryShardClientSec()
-		shardclient.StartClient()
+		shardclient.StartClient1()
 	} else if config.CurrentInstance == config.Test {
-		//client.OneReqSharded()
-		client.FiveReqSharded()
+		shardclient.StartClient2()
 	}
+	//
+	//else if config.CurrentInstance == config.Test {
+	//	//client.OneReqSharded()
+	//	client.FiveReqSharded()
+	//}
 }
