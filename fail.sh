@@ -3,7 +3,7 @@
 # Get the ID and index passed as arguments
 id="$1"
 index="$2"
-sleep_time="$3"
+sleep_time="5"
 
 num_iterations=1000
 pid=10000
