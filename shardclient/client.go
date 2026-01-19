@@ -82,6 +82,15 @@ func (cm *ClientManager) StartSingleTest() {
 	reqID := int32(0)
 	last := int64(0)
 
+	go func(reply *ReplyTime) {
+		t := time.NewTicker(1 * time.Second)
+		for range t.C {
+			fmt.Printf("Success so far: %d, this round %d, skipped:%v, send:%v\n",
+				reply.success, reply.success-reply.lastRound, countTotal(reply.skipped), countTotal(reply.send))
+			reply.lastRound = reply.success
+		}
+	}(replyTime)
+
 	// steps for two loops
 	for r := 0; r < round; r++ {
 		wg := new(sync.WaitGroup)
@@ -130,10 +139,10 @@ func (cm *ClientManager) StartSingleTest() {
 		elapsed := last - startTime.UnixNano()
 		elapsed_sum += elapsed
 		//fmt.Printf("Round %d finished: total success=%d of %d/%d, elapsed=%v\n", r, client.Success(), replyTime.roundArrivals[r], reqsPerRound, time.Duration(elapsed))
-		//if !config.PrintPerSec {
-		fmt.Printf("Round %d finished: total success=%d(f:%d) of %d/%d, elapsed=%v\n",
-			r, replyTime.success, replyTime.failed, replyTime.roundArr[r], reqsPerRound, time.Duration(elapsed))
-		//}
+		if !config.PrintPerSec {
+			fmt.Printf("Round %d finished: total success=%d(f:%d) of %d/%d, elapsed=%v\n",
+				r, replyTime.success, replyTime.failed, replyTime.roundArr[r], reqsPerRound, time.Duration(elapsed))
+		}
 	}
 
 	after_total := time.Now()

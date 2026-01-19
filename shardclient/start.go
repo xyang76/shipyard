@@ -8,7 +8,7 @@ func StartClient() {
 	cm.reqsPerRound = 1000
 	cm.Init()
 	cm.FindLeaders()
-	//cm.StartSingleTest()
-	cm.StartConcurrentTest()
+	cm.StartSingleTest()
+	//cm.StartConcurrentTest()
 	cm.Close()
 }
