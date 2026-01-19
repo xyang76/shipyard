@@ -2,7 +2,7 @@ package shardclient
 
 func StartClient() {
 	cm := NewClientManager()
-	cm.writePercent = 70
+	cm.writePercent = 20
 	cm.conflicts = 100
 	cm.round = 1000
 	cm.reqsPerRound = 1000
