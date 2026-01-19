@@ -27,9 +27,9 @@ import (
 
 var portnum *int = flag.Int("sport", 7070, "Port # to listen on. Defaults to 7070")
 var myAddr *string = flag.String("addr", "", "Server address (this machine). Defaults to localhost.")
-
+var myId *int = flag.Int("id", -1, "Server id (this machine).")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-var thrifty = flag.Bool("thrifty", false, "Use only as many messages as strictly required for inter-replica communication.")
+var thrifty = flag.Bool("thrifty", true, "Use only as many messages as strictly required for inter-replica communication.")
 var exec = flag.Bool("exec", true, "Execute commands.")
 var dreply = flag.Bool("dreply", true, "Reply to client only after command has been executed.")
 var beacon = flag.Bool("beacon", false, "Send beacons to other replicas to compare their relative speeds.")
@@ -126,7 +126,7 @@ func registerWithMaster(masterAddr string) (int, []string) {
 	}
 	args := &masterproto.RegisterArgs{addr, *portnum}
 	var reply masterproto.RegisterReply
-
+	maxDial := 10
 	for done := false; !done; {
 		mcli, err := rpc.DialHTTP("tcp", masterAddr)
 		if err == nil {
@@ -137,6 +137,10 @@ func registerWithMaster(masterAddr string) (int, []string) {
 			}
 		} else {
 			dlog.Info("Dialing master failed:%v", err)
+			maxDial--
+		}
+		if maxDial == 0 {
+			break
 		}
 		time.Sleep(1e9)
 	}

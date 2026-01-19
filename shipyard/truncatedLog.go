@@ -57,8 +57,8 @@ func (t *TruncatedLog) GetTerm(index int32) (int32, int32) {
 }
 
 func (t *TruncatedLog) Get(index int32) LogEntry {
+	lastEpoch, lastApportion := int32(0), int32(0)
 	if index < t.offset {
-		lastEpoch, lastApportion := int32(0), int32(0)
 		if t.lastTruncatedIndex >= 0 {
 			lastEpoch, lastApportion = t.GetTerm(t.lastTruncatedIndex)
 		}
@@ -70,8 +70,12 @@ func (t *TruncatedLog) Get(index int32) LogEntry {
 	}
 	relative := index - t.offset
 	if relative >= int32(len(t.log)) {
-		dlog.Error("Get: invalid index %v, offset %v, logSize %v", index, t.offset, t.logSize)
-		return LogEntry{}
+		dummy := LogEntry{
+			Epoch:     lastEpoch,
+			Apportion: lastApportion,                                                     // or some default term
+			Command:   state.Command{Op: state.PUT, K: state.Key(0), V: state.Truncated}, // or dummy command
+		}
+		return dummy
 	}
 	return t.log[relative]
 }

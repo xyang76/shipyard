@@ -44,3 +44,9 @@ func (s *ShardInfo) isShardId() bool {
 func (s *ShardInfo) GetShardId(k state.Key) (int32, error) {
 	return int32(uint64(k) % uint64(s.ShardNum)), nil
 }
+
+func (s *ShardInfo) GetKey(shardID int32, reqID int32) state.Key {
+	return state.Key(
+		uint64(reqID)*uint64(s.ShardNum) + uint64(shardID),
+	)
+}

@@ -5,6 +5,7 @@ import (
 	"Mix/config"
 	"Mix/master"
 	"Mix/server"
+	"Mix/shardclient"
 	"flag"
 )
 
@@ -23,19 +24,11 @@ func main() {
 	} else if config.CurrentInstance == config.Server {
 		server.Start()
 	} else if config.CurrentInstance == config.Client {
-		//if config.CurrentApproach == config.Raft ||
-		//	config.CurrentApproach == config.Shipyard ||
-		//	config.CurrentApproach == config.MultiRaft {
-		//	dlog.Info("Starting Raft/Shipyard/MultiRaft client")
-		//	client.StartRecoveryShardClient()
-		//} else {
-		//	dlog.Info("Starting Paxos/EPaxos/Mencius client")
-		//	client.StartPaxosClient2()
-		//}
 		client.StartRecoveryShardClient()
 	} else if config.CurrentInstance == config.ClientPerSec {
 		//client.OneReq()
-		client.StartRecoveryShardClientSec()
+		//client.StartRecoveryShardClientSec()
+		shardclient.StartClient()
 	} else if config.CurrentInstance == config.Test {
 		//client.OneReqSharded()
 		client.FiveReqSharded()

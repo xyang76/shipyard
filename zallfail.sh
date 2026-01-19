@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Get the ID passed as an argument
-sleep_time=10
 num_iterations=1000
 sleep_time=30
 method="$1"

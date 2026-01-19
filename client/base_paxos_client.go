@@ -18,7 +18,7 @@ var fast *bool = flag.Bool("f", false, "Fast Paxos: send message directly to all
 var rounds *int = flag.Int("rnd", 10, "Split the total number of requests into this many rounds, and do rounds sequentially. Defaults to 1.")
 var check = flag.Bool("check", false, "Check that every expected reply was received exactly once.")
 var eps *int = flag.Int("eps", 0, "Send eps more messages per round than the client will wait for (to discount stragglers). Defaults to 0.")
-var conflicts *int = flag.Int("c", 100, "Percentage of conflicts. Defaults to 0%")
+var conflicts *int = flag.Int("c", 0, "Percentage of conflicts. Defaults to 0%")
 var s = flag.Float64("zs", 2, "Zipfian s parameter")
 var v = flag.Float64("zv", 1, "Zipfian v parameter")
 

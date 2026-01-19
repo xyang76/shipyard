@@ -72,7 +72,7 @@ func NewReplica(id int, peerAddrList []string, thrifty bool, exec bool, dreply b
 		Replica: genericsmr.NewReplica(id, peerAddrList, thrifty, exec, dreply),
 		//log:                    make([]LogEntry, 15*1024*1024), // preallocate 15M entries
 		//logSize:                0,                              // initially empty
-		log:                    NewTruncatedLog(config.LOG_SIZE),
+		log:                    NewTruncatedLog(int32(id), config.LOG_SIZE),
 		logAppendChan:          make(chan struct{}, config.CHAN_BUFFER_SIZE),
 		requestVoteChan:        make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
 		requestVoteReplyChan:   make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
@@ -164,7 +164,7 @@ func (r *Replica) run() {
 
 		case prop := <-onOffProposeChan:
 			// got a client propose
-			dlog.Printf("RaftReplica got proposal Op=%d Id=%d\n", prop.Command.Op, prop.CommandId)
+			dlog.Print("RaftReplica got proposal Op=%d Id=%d\n", prop.Command.Op, prop.CommandId)
 			if config.Read_Local {
 				r.handleRWPropose(prop)
 			} else {
@@ -240,6 +240,7 @@ func (r *Replica) startElection() {
 }
 
 func (r *Replica) runElectionTimer() {
+
 	go func() {
 		for {
 			timeoutDuration := config.RandomElectionTimeout()
@@ -540,7 +541,9 @@ func (r *Replica) leaderAppendEntries() {
 	}
 	for _, peerId := range r.peerIds {
 		//r.mu.Lock()
+		r.mu.Lock()
 		ni := r.nextIndex[peerId]
+		r.mu.Unlock()
 		prevLogIndex := ni - 1
 		prevLogTerm := int32(-1)
 		if prevLogIndex >= 0 {
@@ -562,7 +565,9 @@ func (r *Replica) leaderAppendEntries() {
 			Entries:      entries,
 			LeaderCommit: r.commitIndex,
 		}
+		r.mu.Lock()
 		r.nextIndex[peerId] = end - 1
+		r.mu.Unlock()
 		r.SendMsg(peerId, r.appendEntryRPC, args)
 	}
 }
@@ -577,7 +582,7 @@ func (r *Replica) handlePropose(propose *genericsmr.Propose) {
 		return
 	}
 	// Special command for clients identify the leader, not involving replication
-	if propose.CommandId == config.IdentifyLeader && propose.Command.K == 0 && propose.Command.V == 0 && propose.Command.Op == state.GET {
+	if propose.CommandId == config.IdentifyLeader && propose.Command.Op == state.GET {
 		preply := &genericsmrproto.ProposeReplyTS{config.TRUE, config.IdentifyLeader, state.ISLeader, 0}
 		r.ReplyProposeTS(preply, propose.Reply)
 		return

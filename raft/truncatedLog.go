@@ -3,6 +3,7 @@ package raft
 import (
 	"Mix/dlog"
 	"Mix/state"
+	"fmt"
 )
 
 //const TruncateSize = 512 * 1024
@@ -11,14 +12,20 @@ type TruncatedLog struct {
 	log                []LogEntry
 	logSize            int32 // Absolute logsize
 	offset             int32 // Absolute index
+	id                 int32
 	lastTruncatedIndex int32
 	truncateSize       int32
 }
 
-func NewTruncatedLog(capacity int) *TruncatedLog {
+func NewTruncatedLog(id int32, capacity int) *TruncatedLog {
+	var logSize int32 = dlog.ReadLog(id)
 	t := &TruncatedLog{
-		log:          make([]LogEntry, 0, capacity),
-		truncateSize: int32(capacity / 10),
+		log:                make([]LogEntry, 0, capacity),
+		truncateSize:       int32(capacity / 10),
+		logSize:            logSize,
+		offset:             logSize,
+		lastTruncatedIndex: logSize,
+		id:                 id,
 	}
 	return t
 }
@@ -55,8 +62,8 @@ func (t *TruncatedLog) GetTerm(index int32) int32 {
 }
 
 func (t *TruncatedLog) Get(index int32) LogEntry {
+	lastTerm := int32(0)
 	if index < t.offset {
-		lastTerm := int32(0)
 		if t.lastTruncatedIndex >= 0 {
 			lastTerm = t.GetTerm(t.lastTruncatedIndex)
 		}
@@ -67,8 +74,11 @@ func (t *TruncatedLog) Get(index int32) LogEntry {
 	}
 	relative := index - t.offset
 	if relative >= int32(len(t.log)) {
-		dlog.Error("Get: invalid index %v, offset %v, logSize %v", index, t.offset, t.logSize)
-		return LogEntry{}
+		dummy := LogEntry{
+			Term:    lastTerm,
+			Command: state.Command{Op: state.PUT, K: state.Key(0), V: state.Truncated}, // or dummy command
+		}
+		return dummy
 	}
 	return t.log[relative]
 }
@@ -125,4 +135,10 @@ func (t *TruncatedLog) TruncateIfNeeded(to int32) {
 		t.log = t.log[t.truncateSize:]
 		t.offset += t.truncateSize
 	}
+	t.Update()
+}
+
+func (t *TruncatedLog) Update() {
+	size := fmt.Sprintf("%v", t.logSize)
+	dlog.StoreLog(t.id, size)
 }

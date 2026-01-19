@@ -48,8 +48,20 @@ func StartRecoveryShardClient() {
 	round := *rounds
 	writePercent := *writes
 	reqID := int32(0)
+	last := int64(0)
 	replyTime := NewReplyTime(round, reqsPerRound, shards)
 	client := NewShardClient(rl.ReplicaList, shards, replyTime)
+
+	if config.PrintPerSec {
+		go func(reply *ReplyTime) {
+			t := time.NewTicker(1 * time.Second)
+			for range t.C {
+				fmt.Printf("Success so far: %d, this round %d, skipped:%v, send:%v\n",
+					client.Success(), client.success-last, countTotal(reply.skipped), countTotal(reply.send))
+				last = client.success
+			}
+		}(replyTime)
+	}
 
 	// initial leaders
 	for _, sid := range shards.Shards {
@@ -100,8 +112,10 @@ func StartRecoveryShardClient() {
 		elapsed := last - startTime.UnixNano()
 		elapsed_sum += elapsed
 		//fmt.Printf("Round %d finished: total success=%d of %d/%d, elapsed=%v\n", r, client.Success(), replyTime.roundArrivals[r], reqsPerRound, time.Duration(elapsed))
-		fmt.Printf("Round %d finished: total success=%d(s:%d-f:%d) of %d/%d, elapsed=%v\n",
-			r, client.Success(), client.skipped, client.failed, replyTime.roundArrivals[r], reqsPerRound, time.Duration(elapsed))
+		if !config.PrintPerSec {
+			fmt.Printf("Round %d finished: total success=%d(s:%d-f:%d) of %d/%d, elapsed=%v\n",
+				r, client.Success(), client.skipped, client.failed, replyTime.roundArrivals[r], reqsPerRound, time.Duration(elapsed))
+		}
 	}
 
 	after_total := time.Now()

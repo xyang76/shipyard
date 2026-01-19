@@ -2,14 +2,18 @@ package client
 
 import (
 	"Mix/config"
+	"Mix/dlog"
 	"Mix/genericsmr"
 	"Mix/genericsmrproto"
+	"Mix/masterproto"
 	"Mix/shard"
 	"Mix/state"
 	"bufio"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
+	"net/rpc"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -124,8 +128,19 @@ func (c *ShardClient) Skipped() int64 {
 	return atomic.LoadInt64(&c.skipped)
 }
 
+func (c *ShardClient) findPaxosLeader(master *rpc.Client) *ShardConn {
+	reply := new(masterproto.GetLeaderReply)
+	if err := master.Call("Master.GetLeader", new(masterproto.GetLeaderArgs), reply); err != nil {
+		log.Fatalf("Error making the GetLeader RPC\n")
+	}
+	leader := reply.LeaderId
+	log.Printf("The leader is replica %d\n", leader)
+	return nil
+}
+
 func (c *ShardClient) findLeader(sid int32) *ShardConn {
 	for _, addr := range c.replicas {
+		dlog.Info("dial replica %v", addr)
 		conn, err := net.DialTimeout("tcp", addr, genericsmr.CONN_TIMEOUT)
 		if err != nil {
 			continue

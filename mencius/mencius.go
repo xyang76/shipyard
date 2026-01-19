@@ -14,9 +14,8 @@ import (
 	"time"
 )
 
-const CHAN_BUFFER_SIZE = 200000
-const WAIT_BEFORE_SKIP_MS = 50
-const NB_INST_TO_SKIP = 100000
+const WAIT_BEFORE_SKIP_MS = 1000
+const NB_INST_TO_SKIP = 1
 const MAX_SKIPS_WAITING = 20
 const TRUE = uint8(1)
 const FALSE = uint8(0)
@@ -187,11 +186,17 @@ func (r *Replica) run() {
 
 	go r.clock()
 
+	onOffProposeChan := r.ProposeChan
+	tick := time.NewTicker(time.Duration(*config.TickTime) * time.Millisecond)
+	defer tick.Stop()
+
 	for !r.Shutdown {
 
 		select {
-
-		case propose := <-r.ProposeChan:
+		case <-tick.C:
+			onOffProposeChan = r.ProposeChan
+			break
+		case propose := <-onOffProposeChan:
 			//got a Propose from a client
 			dlog.Printf("Proposal with id %d\n", propose.CommandId)
 			r.handlePropose(propose)
@@ -454,6 +459,7 @@ func (r *Replica) handleSkip(skip *menciusproto.Skip) {
 		0,
 		COMMITTED,
 		nil}
+	//dlog.Info("skipped %v", skip.StartInstance)
 	r.updateBlocking(skip.StartInstance)
 }
 

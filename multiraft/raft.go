@@ -62,7 +62,7 @@ func NewShardedRaft(repl *Replica, id int32, peerIds []int32, shard int32) *Shar
 		shard:   shard,
 		//log:             make([]raft.LogEntry, 15*1024*1024), // preallocate 15M entries
 		//logSize:         0,                                   // initially empty
-		log:             raft.NewTruncatedLog(config.LOG_SIZE),
+		log:             raft.NewTruncatedLog(id, config.LOG_SIZE),
 		logAppendChan:   make(chan struct{}, config.CHAN_BUFFER_SIZE),
 		proposeChan:     make(chan *genericsmr.Propose, config.CHAN_BUFFER_SIZE),
 		pendingRequests: make(map[int32]*raft.ClientRequests),
