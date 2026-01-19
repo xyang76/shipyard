@@ -35,6 +35,7 @@ var BalanceRegenerate *int = flag.Int("to", 500, "Token regeneration in millisec
 var ReplyReceiveTimeout *int = flag.Int("rrt", 10000, "Since leader may crash, lost connection, we need this timeout to count elapse")
 var BatchSize *int = flag.Int("mb", 10, "max batch size")
 var AutoBalance *int = flag.Int("ab", 1, "auto balance")
+var PrintIt *int = flag.Int("pp", 1, "auto balance")
 
 const CHAN_BUFFER_SIZE = 30000
 const LOG_SIZE = 512 * 1024
@@ -47,11 +48,12 @@ var FastRaft *int = flag.Int("cmt", 0, "Tick time in milliseconds")
 
 var MAX_BATCH = 2
 var Auto_Balance = true
+var PrintPerSec = false
 
 const Read_Local = true //For raft/shipyard, we do not need replicate reads
 const Fail_Prone = true // Need reconnection
 const PrintApportion = false
-const PrintPerSec = true
+
 const LogFile = true
 const Fake_recovery = true
 
@@ -87,6 +89,7 @@ func SetEnvironment() {
 	CurrentApproach = Approach(*app)
 	MAX_BATCH = *BatchSize
 	Auto_Balance = *AutoBalance != 0
+	PrintPerSec = *PrintIt != 0
 }
 
 // electionTimeout generates a pseudo-random election timeout duration.
