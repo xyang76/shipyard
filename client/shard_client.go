@@ -109,7 +109,7 @@ package client
 //	}
 //
 //	// --- 5. Send requests to shard leaders ---
-//	reqsNb := *reqsNum // total number of requests
+//	reqsNb := *ReqsNum // total number of requests
 //
 //	keysPerRequest := make([]state.Key, reqsNb)
 //	put := make([]bool, reqsNb)

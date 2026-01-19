@@ -11,11 +11,11 @@ import (
 	"sync/atomic"
 )
 
-var reqsNum *int = flag.Int("q", 5000, "Total number of requests. Defaults to 5000.")
-var writes *int = flag.Int("w", 70, "Percentage of updates (writes). Defaults to 100%.")
+var ReqsNum *int = flag.Int("q", 100, "Total number of requests. Defaults to 5000.")
+var Writes *int = flag.Int("w", 70, "Percentage of updates (Writes). Defaults to 100%.")
 var noLeader *bool = flag.Bool("e", false, "Egalitarian (no leader). Defaults to false.")
 var fast *bool = flag.Bool("f", false, "Fast Paxos: send message directly to all replicas. Defaults to false.")
-var rounds *int = flag.Int("rnd", 10, "Split the total number of requests into this many rounds, and do rounds sequentially. Defaults to 1.")
+var Rounds *int = flag.Int("rnd", 10, "Split the total number of requests into this many Rounds, and do Rounds sequentially. Defaults to 1.")
 var check = flag.Bool("check", false, "Check that every expected reply was received exactly once.")
 var eps *int = flag.Int("eps", 0, "Send eps more messages per round than the client will wait for (to discount stragglers). Defaults to 0.")
 var conflicts *int = flag.Int("c", 0, "Percentage of conflicts. Defaults to 0%")
@@ -124,7 +124,7 @@ func (c *PaxosClient) NonBlockSend(replica int, args *genericsmrproto.Propose) {
 	}
 }
 
-// Flush all remaining writes
+// Flush all remaining Writes
 func (c *PaxosClient) FlushAll() {
 	for _, rc := range c.servers {
 		if rc != nil {

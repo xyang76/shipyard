@@ -43,10 +43,10 @@ func StartRecoveryShardClient() {
 
 	// initial parameters
 	shards := shard.NewShardInfo()
-	reqsPerRound := *reqsNum
-	//round := *rounds
-	round := *rounds
-	writePercent := *writes
+	reqsPerRound := *ReqsNum
+	//round := *Rounds
+	round := *Rounds
+	writePercent := *Writes
 	reqID := int32(0)
 	last := int64(0)
 	replyTime := NewReplyTime(round, reqsPerRound, shards)
@@ -121,7 +121,7 @@ func StartRecoveryShardClient() {
 	after_total := time.Now()
 	fmt.Printf("Test took %v, sum %v\n", after_total.Sub(before_total), time.Duration(elapsed_sum))
 
-	// --- after all rounds ---
+	// --- after all Rounds ---
 	client.Close()
 	master.Close()
 }

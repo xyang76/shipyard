@@ -22,7 +22,7 @@ func StartPaxosClient2() {
 
 	// --- random key generation ---
 	randObj := rand.New(rand.NewSource(42))
-	zipf := rand.NewZipf(randObj, *s, *v, uint64(*reqsNum / *rounds + *eps))
+	zipf := rand.NewZipf(randObj, *s, *v, uint64(*ReqsNum / *Rounds + *eps))
 	if *conflicts > 100 {
 		log.Fatalf("Conflicts percentage must be 0..100")
 	}
@@ -42,11 +42,11 @@ func StartPaxosClient2() {
 	}
 
 	shards := shard.NewShardInfo()
-	replyTime := NewReplyTime(*rounds, *reqsNum / *rounds, shards)
+	replyTime := NewReplyTime(*Rounds, *ReqsNum / *Rounds, shards)
 	client := NewPaxosClient(rlReply.ReplicaList, replyTime, *noLeader)
 
 	// --- generate requests ---
-	rarray := make([]int, *reqsNum / *rounds + *eps)
+	rarray := make([]int, *ReqsNum / *Rounds + *eps)
 	karray := make([]int64, len(rarray))
 	put := make([]bool, len(rarray))
 	for i := 0; i < len(rarray); i++ {
@@ -58,7 +58,7 @@ func StartPaxosClient2() {
 			} else {
 				karray[i] = int64(43 + i)
 			}
-			put[i] = rand.Intn(100) < *writes
+			put[i] = rand.Intn(100) < *Writes
 		} else {
 			karray[i] = int64(zipf.Uint64())
 		}
@@ -75,8 +75,8 @@ func StartPaxosClient2() {
 	before_total := time.Now()
 	elapsed_sum := int64(0)
 	reqID := int32(0)
-	for round := 0; round < *rounds; round++ {
-		n := *reqsNum / *rounds
+	for round := 0; round < *Rounds; round++ {
+		n := *ReqsNum / *Rounds
 		startTime := time.Now()
 
 		for i := 0; i < n+*eps; i++ {
@@ -106,7 +106,7 @@ func StartPaxosClient2() {
 			reqID++
 		}
 
-		// flush all writes at end of round
+		// flush all Writes at end of round
 		client.FlushAll()
 
 		// wait for replies or timeout

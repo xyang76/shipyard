@@ -147,7 +147,7 @@ package client
 //	sendTicker := time.NewTicker(1 * time.Second)
 //	defer sendTicker.Stop()
 //
-//	batchSize := *reqsNum // per second
+//	batchSize := *ReqsNum // per second
 //	turns := 100          // e.g., number of seconds to run
 //
 //	startTime := time.Now()

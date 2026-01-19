@@ -106,8 +106,8 @@ package client
 //		op  state.OpType
 //	}
 //
-//	reqs := make([]Request, *reqsNum)
-//	for i := 0; i < *reqsNum; i++ {
+//	reqs := make([]Request, *ReqsNum)
+//	for i := 0; i < *ReqsNum; i++ {
 //		reqs[i] = Request{
 //			key: state.Key(100 + i),
 //			val: state.Value(i),
@@ -220,7 +220,7 @@ package client
 //	close(done)
 //	endTime := time.Now()
 //
-//	fmt.Printf("Sent %d requests, received %d successful replies\n", *reqsNum, atomic.LoadInt64(&successed))
+//	fmt.Printf("Sent %d requests, received %d successful replies\n", *ReqsNum, atomic.LoadInt64(&successed))
 //	fmt.Printf("Total time: %v\n", endTime.Sub(startTime))
 //
 //	// --- 9. Close all shard connections ---

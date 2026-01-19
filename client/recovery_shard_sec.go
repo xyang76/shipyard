@@ -42,8 +42,8 @@ func StartRecoveryShardClientSec() {
 		log.Fatalf("No replicas returned by the master")
 	}
 
-	batch := *reqsNum
-	writePercent := *writes
+	batch := *ReqsNum
+	writePercent := *Writes
 	turns := 100
 	shards := shard.NewShardInfo()
 	replyTime := NewReplyTime(turns, batch, shards)

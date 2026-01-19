@@ -24,7 +24,7 @@ package client
 //	runtime.GOMAXPROCS(runtime.NumCPU())
 //
 //	randObj := rand.New(rand.NewSource(42))
-//	zipf := rand.NewZipf(randObj, *s, *v, uint64(*reqsNum / *rounds + *eps))
+//	zipf := rand.NewZipf(randObj, *s, *v, uint64(*ReqsNum / *Rounds + *eps))
 //
 //	if *conflicts > 100 {
 //		log.Fatalf("Conflicts percentage must be between 0 and 100.\n")
@@ -104,16 +104,16 @@ package client
 //
 //	// --- Prepare Raft request arrays ---
 //	N = len(rlReply.ReplicaList)
-//	rarray = make([]int, *reqsNum / *rounds + *eps)
-//	karray := make([]int64, *reqsNum / *rounds + *eps)
-//	put := make([]bool, *reqsNum / *rounds + *eps)
+//	rarray = make([]int, *ReqsNum / *Rounds + *eps)
+//	karray := make([]int64, *ReqsNum / *Rounds + *eps)
+//	put := make([]bool, *ReqsNum / *Rounds + *eps)
 //	perReplicaCount := make([]int, N)
-//	test := make([]int, *reqsNum / *rounds + *eps)
+//	test := make([]int, *ReqsNum / *Rounds + *eps)
 //
 //	for i := 0; i < len(rarray); i++ {
 //		r := randObj.Intn(N)
 //		rarray[i] = r
-//		if i < *reqsNum / *rounds {
+//		if i < *ReqsNum / *Rounds {
 //			perReplicaCount[r]++
 //		}
 //
@@ -123,7 +123,7 @@ package client
 //			} else {
 //				karray[i] = int64(43 + i)
 //			}
-//			put[i] = randObj.Intn(100) < *writes
+//			put[i] = randObj.Intn(100) < *Writes
 //		} else {
 //			karray[i] = int64(zipf.Uint64())
 //			test[karray[i]]++
@@ -141,9 +141,9 @@ package client
 //	done := make(chan bool, N)
 //	beforeTotal := time.Now()
 //
-//	// --- Run rounds ---
-//	for j := 0; j < *rounds; j++ {
-//		n := *reqsNum / *rounds
+//	// --- Run Rounds ---
+//	for j := 0; j < *Rounds; j++ {
+//		n := *ReqsNum / *Rounds
 //
 //		if *check {
 //			rsp = make([]bool, n)
