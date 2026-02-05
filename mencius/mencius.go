@@ -14,9 +14,9 @@ import (
 	"time"
 )
 
-const WAIT_BEFORE_SKIP_MS = 1000
-const NB_INST_TO_SKIP = 1
-const MAX_SKIPS_WAITING = 20
+const WAIT_BEFORE_SKIP_MS = 100000
+const NB_INST_TO_SKIP = 100000
+const MAX_SKIPS_WAITING = 1
 const TRUE = uint8(1)
 const FALSE = uint8(0)
 
@@ -187,7 +187,7 @@ func (r *Replica) run() {
 	go r.clock()
 
 	onOffProposeChan := r.ProposeChan
-	tick := time.NewTicker(time.Duration(*config.TickTime) * time.Millisecond)
+	tick := time.NewTicker(time.Duration(*config.TickTime) * time.Second)
 	defer tick.Stop()
 
 	for !r.Shutdown {
@@ -752,7 +752,7 @@ func (r *Replica) updateBlocking(instance int32) {
 	if instance != r.blockingInstance {
 		return
 	}
-	
+
 	for r.blockingInstance = r.blockingInstance; true; r.blockingInstance++ {
 		if r.blockingInstance <= r.skippedTo[int(r.blockingInstance)%r.N] {
 			continue
