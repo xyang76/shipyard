@@ -187,7 +187,7 @@ func (r *Replica) run() {
 	go r.clock()
 
 	onOffProposeChan := r.ProposeChan
-	tick := time.NewTicker(time.Duration(*config.TickTime) * time.Millisecond)
+	tick := time.NewTicker(20 * time.Millisecond)
 	defer tick.Stop()
 
 	for !r.Shutdown {

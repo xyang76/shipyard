@@ -568,7 +568,7 @@ func (r *Skiff) handleAppendEntries(args *AppendEntriesArgs) {
 			r.commitIndex = commit
 		}
 
-		r.replica.startBalance(r.shard, args.LeaderId, args.CurrentStatus, r)
+		r.replica.checkBalance(r.shard, args.LeaderId, args.CurrentStatus, r)
 	}
 
 	r.replica.SendMsg(args.LeaderId, r.replica.appendEntryReplyRPC, &reply)

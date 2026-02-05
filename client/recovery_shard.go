@@ -84,6 +84,9 @@ func StartRecoveryShardClient() {
 					key = state.Key(43 + reqID)
 				}
 			}
+			if *config.Balanced == 1 {
+				key = shards.GetUnbalancedKey(reqID)
+			}
 			operation := client.RandomValue()
 			if operation <= writePercent {
 				client.NonBlockSend(reqID, key, state.PUT, state.Value(reqID))
@@ -119,7 +122,7 @@ func StartRecoveryShardClient() {
 	}
 
 	after_total := time.Now()
-	fmt.Printf("Test took %v, sum %v\n", after_total.Sub(before_total), time.Duration(elapsed_sum))
+	fmt.Printf("ClientWithFail took %v, sum %v\n", after_total.Sub(before_total), time.Duration(elapsed_sum))
 
 	// --- after all Rounds ---
 	client.Close()

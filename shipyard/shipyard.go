@@ -399,7 +399,7 @@ func (r *Replica) handleHeartbeat(args *HeartbeatArgs) {
 		r.refreshTime(shard)
 	}
 	shardId := r.randomShard()
-	r.startBalance(shardId, args.Sender, args.Apportion, r.shards[shardId])
+	r.checkBalance(shardId, args.Sender, args.Apportion, r.shards[shardId])
 }
 
 func (r *Replica) randomShard() int32 {
@@ -423,8 +423,8 @@ func (r *Replica) needBalance(shard int32, apportion int32) bool {
 	return false
 }
 
-func (r *Replica) startBalance(shard int32, leaderId int32, apportion int32, skiff *Skiff) {
-	if r.apportion.Imbalance(int(apportion)) && !r.balancing {
+func (r *Replica) checkBalance(shard int32, leaderId int32, apportion int32, skiff *Skiff) {
+	if config.Auto_Balance && r.apportion.Imbalance(int(apportion)) && !r.balancing {
 		r.balancing = true
 		dlog.Info("rep:%v-shard:%v need balance {received leader:%v-app:%v vs cur:%v}", r.Id, shard, leaderId, decodeApportion(int(apportion)), skiff.currentApportion)
 		time.AfterFunc(time.Duration(*config.BalanceRegenerate)*time.Millisecond, func() {

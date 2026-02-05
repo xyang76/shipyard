@@ -204,7 +204,7 @@ func StartPaxosClient() {
 	}
 
 	after_total := time.Now()
-	fmt.Printf("Test took %v\n", after_total.Sub(before_total))
+	fmt.Printf("ClientWithFail took %v\n", after_total.Sub(before_total))
 
 	s := 0
 	for _, succ := range successful {

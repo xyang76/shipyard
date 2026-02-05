@@ -126,7 +126,7 @@ func StartPaxosClient2() {
 	}
 
 	after_total := time.Now()
-	fmt.Printf("Test took %v, sum %v\n", after_total.Sub(before_total), time.Duration(elapsed_sum))
+	fmt.Printf("ClientWithFail took %v, sum %v\n", after_total.Sub(before_total), time.Duration(elapsed_sum))
 	client.Close()
 	master.Close()
 }

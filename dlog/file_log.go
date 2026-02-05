@@ -103,10 +103,10 @@ func (f *FileLog) Close() error {
 	return nil
 }
 
-func ReadLog(id int32) int32 {
+func ReadLog(id int32, shard int32) int32 {
 	logsize := int32(0)
 	if config.LogFile {
-		filename := fmt.Sprintf("%v.txt", id)
+		filename := fmt.Sprintf("R%v_%v.txt", id, shard)
 		fileLog, err := OpenFileLog(filename)
 		if err != nil {
 			Info("Error while opening log: %v", err)
@@ -129,9 +129,9 @@ func ReadLog(id int32) int32 {
 	return logsize
 }
 
-func StoreLog(id int32, line string) error {
+func StoreLog(id int32, shard int32, line string) error {
 	if config.LogFile {
-		filename := fmt.Sprintf("%v.txt", id)
+		filename := fmt.Sprintf("R%v_%v.txt", id, shard)
 		data, err := os.ReadFile(filename)
 		if err != nil && !os.IsNotExist(err) {
 			return err

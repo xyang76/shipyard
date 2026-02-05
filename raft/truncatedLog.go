@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"Mix/config"
 	"Mix/dlog"
 	"Mix/state"
 	"fmt"
@@ -12,13 +13,17 @@ type TruncatedLog struct {
 	log                []LogEntry
 	logSize            int32 // Absolute logsize
 	offset             int32 // Absolute index
+	shard              int32
 	id                 int32
 	lastTruncatedIndex int32
 	truncateSize       int32
 }
 
-func NewTruncatedLog(id int32, capacity int) *TruncatedLog {
-	var logSize int32 = dlog.ReadLog(id)
+func NewTruncatedLog(id int32, shard int32, capacity int) *TruncatedLog {
+	var logSize int32
+	if config.StoreLog {
+		logSize = dlog.ReadLog(id, shard)
+	}
 	t := &TruncatedLog{
 		log:                make([]LogEntry, 0, capacity),
 		truncateSize:       int32(capacity / 10),
@@ -26,6 +31,7 @@ func NewTruncatedLog(id int32, capacity int) *TruncatedLog {
 		offset:             logSize,
 		lastTruncatedIndex: logSize,
 		id:                 id,
+		shard:              shard,
 	}
 	return t
 }
@@ -135,10 +141,12 @@ func (t *TruncatedLog) TruncateIfNeeded(to int32) {
 		t.log = t.log[t.truncateSize:]
 		t.offset += t.truncateSize
 	}
-	t.Update()
+	if config.StoreLog {
+		t.UpdateLog()
+	}
 }
 
-func (t *TruncatedLog) Update() {
+func (t *TruncatedLog) UpdateLog() {
 	size := fmt.Sprintf("%v", t.logSize)
-	dlog.StoreLog(t.id, size)
+	dlog.StoreLog(t.id, t.shard, size)
 }

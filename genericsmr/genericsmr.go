@@ -248,7 +248,7 @@ func (r *Replica) ConnectToPeersNoListeners() {
 	log.Printf("Replica id: %d. Done connecting to peers\n", r.Id)
 }
 
-/* Peer (replica) connections dispatcher */
+/* Test (replica) connections dispatcher */
 func (r *Replica) waitForPeerConnections(done chan bool) {
 	var b [4]byte
 	bs := b[:4]

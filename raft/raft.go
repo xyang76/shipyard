@@ -72,7 +72,7 @@ func NewReplica(id int, peerAddrList []string, thrifty bool, exec bool, dreply b
 		Replica: genericsmr.NewReplica(id, peerAddrList, thrifty, exec, dreply),
 		//log:                    make([]LogEntry, 15*1024*1024), // preallocate 15M entries
 		//logSize:                0,                              // initially empty
-		log:                    NewTruncatedLog(int32(id), config.LOG_SIZE),
+		log:                    NewTruncatedLog(int32(id), 0, config.LOG_SIZE),
 		logAppendChan:          make(chan struct{}, config.CHAN_BUFFER_SIZE),
 		requestVoteChan:        make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
 		requestVoteReplyChan:   make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
@@ -406,29 +406,25 @@ func (r *Replica) handleAppendEntriesReply(reply *AppendEntriesReply) {
 				peerId, r.nextIndex, r.matchIndex)
 
 			// Leader commits
-			if *config.FastRaft == 1 {
-				r.updateCommitIndexRaft()
-			} else {
-				savedCommitIndex := r.commitIndex
-				for i := r.commitIndex + 1; i < r.log.Size(); i++ {
-					if r.log.Get(i).Term == r.currentTerm {
-						matchCount := 1
-						for _, pid := range r.peerIds {
-							if r.matchIndex[pid] >= i {
-								matchCount++
-							}
-						}
-						if matchCount*2 > len(r.peerIds)+1 {
-							r.commitIndex = i
+			savedCommitIndex := r.commitIndex
+			for i := r.commitIndex + 1; i < r.log.Size(); i++ {
+				if r.log.Get(i).Term == r.currentTerm {
+					matchCount := 1
+					for _, pid := range r.peerIds {
+						if r.matchIndex[pid] >= i {
+							matchCount++
 						}
 					}
+					if matchCount*2 > len(r.peerIds)+1 {
+						r.commitIndex = i
+					}
 				}
+			}
 
-				if r.commitIndex != savedCommitIndex {
-					dlog.Print("leader sets commitIndex := %d", r.commitIndex)
-					// r.newCommitReadyChan <- struct{}{}
-					r.commitLog(savedCommitIndex, r.commitIndex)
-				}
+			if r.commitIndex != savedCommitIndex {
+				dlog.Print("leader sets commitIndex := %d", r.commitIndex)
+				// r.newCommitReadyChan <- struct{}{}
+				r.commitLog(savedCommitIndex, r.commitIndex)
 			}
 		} else {
 

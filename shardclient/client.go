@@ -149,7 +149,7 @@ func (cm *ClientManager) StartSingleTest() {
 	}
 
 	after_total := time.Now()
-	fmt.Printf("Test took %v, sum %v\n", after_total.Sub(before_total), time.Duration(elapsed_sum))
+	fmt.Printf("ClientWithFail took %v, sum %v\n", after_total.Sub(before_total), time.Duration(elapsed_sum))
 }
 
 func (cm *ClientManager) StartConcurrentTest() {
