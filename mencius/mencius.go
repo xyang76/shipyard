@@ -752,7 +752,7 @@ func (r *Replica) updateBlocking(instance int32) {
 	if instance != r.blockingInstance {
 		return
 	}
-
+	
 	for r.blockingInstance = r.blockingInstance; true; r.blockingInstance++ {
 		if r.blockingInstance <= r.skippedTo[int(r.blockingInstance)%r.N] {
 			continue
