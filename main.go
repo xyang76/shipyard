@@ -3,12 +3,11 @@ package main
 import (
 	"Mix/client"
 	"Mix/config"
+	"Mix/dlog"
 	"Mix/master"
 	"Mix/server"
-	"Mix/shard"
 	"Mix/shardclient"
 	"flag"
-	"fmt"
 )
 
 // Server
@@ -42,10 +41,5 @@ func main() {
 }
 
 func hello() {
-	shards := shard.NewShardInfo()
-	for i := 0; i < 1000; i++ {
-		key := shards.GetUnbalancedKey(int32(i))
-		id, _ := shards.GetShardId(key)
-		fmt.Printf("shard: %v ", id)
-	}
+	dlog.Info("Hello, welcome to shipyard!")
 }

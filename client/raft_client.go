@@ -2,10 +2,10 @@ package client
 
 //
 //import (
-//	"Mix/config"
-//	"Mix/genericsmrproto"
-//	"Mix/masterproto"
-//	"Mix/state"
+//	"shipyard/config"
+//	"shipyard/genericsmrproto"
+//	"shipyard/masterproto"
+//	"shipyard/state"
 //	"bufio"
 //	"flag"
 //	"fmt"

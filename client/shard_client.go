@@ -3,11 +3,11 @@ package client
 /** This should be used by recovery_shard instead **/
 //
 //import (
-//	"Mix/config"
-//	"Mix/genericsmrproto"
-//	"Mix/masterproto"
-//	"Mix/shard"
-//	"Mix/state"
+//	"shipyard/config"
+//	"shipyard/genericsmrproto"
+//	"shipyard/masterproto"
+//	"shipyard/shard"
+//	"shipyard/state"
 //	"bufio"
 //	"flag"
 //	"fmt"
