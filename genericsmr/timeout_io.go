@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const CONN_TIMEOUT = 20 * time.Second
+const CONN_TIMEOUT = 10 * time.Second
 
 func WriteWithTimeout(
 	conn net.Conn,
