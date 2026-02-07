@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 )
 
-var ReqsNum *int = flag.Int("q", 100, "Total number of requests. Defaults to 5000.")
+var ReqsNum *int = flag.Int("q", 1000, "Total number of requests. Defaults to 5000.")
 var Writes *int = flag.Int("w", 70, "Percentage of updates (Writes). Defaults to 100%.")
 var noLeader *bool = flag.Bool("e", false, "Egalitarian (no leader). Defaults to false.")
 var fast *bool = flag.Bool("f", false, "Fast Paxos: send message directly to all replicas. Defaults to false.")

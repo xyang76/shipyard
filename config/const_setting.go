@@ -36,7 +36,7 @@ var ReplyReceiveTimeout *int = flag.Int("rrt", 10000, "Since leader may crash, l
 var BatchSize *int = flag.Int("mb", 10, "max batch size")
 var AutoBalance *int = flag.Int("ab", 1, "auto balance")
 var Balanced *int = flag.Int("b", 0, "balanced")
-var PrintIt *int = flag.Int("pp", 1, "auto balance")
+var PrintIt *int = flag.Int("pp", 0, "auto balance")
 
 const CHAN_BUFFER_SIZE = 60000
 const LOG_SIZE = 512 * 1024
@@ -47,7 +47,7 @@ const FALSE = uint8(0)
 var TickTime *int = flag.Int("tt", 5, "Tick time in milliseconds")
 var MAX_BATCH = 2
 var Auto_Balance = true
-var PrintPerSec = false
+var PrintPerSec = false //Modify this is not the correct way, it related to PP
 var StoreLog = false
 
 const Read_Local = true //For raft/shipyard, we do not need replicate reads
@@ -60,13 +60,13 @@ const Fake_recovery = true
 type Approach int
 
 const (
-	Paxos Approach = iota
-	Mencius
-	GPaxos
-	EPaxos
-	Raft
+	Shipyard Approach = iota
 	MultiRaft
-	Shipyard
+	Raft
+	EPaxos
+	GPaxos
+	Mencius
+	Paxos
 	Base
 )
 
