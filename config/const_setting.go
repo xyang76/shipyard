@@ -2,8 +2,6 @@ package config
 
 import (
 	"flag"
-	"math/rand"
-	"time"
 )
 
 // 1: Master, 2: server, 3: client
@@ -23,7 +21,7 @@ var NumNodes *int = flag.Int("N", 5, "Number of replicas. Defaults to 3.")
 var Procs *int = flag.Int("p", 2, "GOMAXPROCS. Defaults to 2")
 
 // Shards
-var ShardNum *int = flag.Int("s", 9, "Number of shards. Only used for multi-raft and shipyard.")
+var ShardNum *int = flag.Int("s", 5, "Number of shards. Only used for multi-raft and shipyard.")
 var ShardStatus *bool = flag.Bool("status", false, "Show shard leading status.")
 var SeperateClientPort *bool = flag.Bool("sp", true, "Seperate client ports and peer ports.")
 
@@ -37,10 +35,12 @@ var BatchSize *int = flag.Int("mb", 10, "max batch size")
 var AutoBalance *int = flag.Int("ab", 1, "auto balance")
 var Balanced *int = flag.Int("b", 0, "balanced")
 var PrintIt *int = flag.Int("pp", 0, "auto balance")
+var Recovered *int = flag.Int("rec", 0, "auto balance")
 
 const CHAN_BUFFER_SIZE = 60000
 const LOG_SIZE = 512 * 1024
 const PAXOS_LOG_SIZE = 1024 * 1024 * 20
+const RecoveryInterval = 1 // 1 second
 const TRUE = uint8(1)
 const FALSE = uint8(0)
 
@@ -56,45 +56,3 @@ const PrintApportion = false
 
 const LogFile = true
 const Fake_recovery = true
-
-type Approach int
-
-const (
-	Shipyard Approach = iota
-	MultiRaft
-	Raft
-	EPaxos
-	GPaxos
-	Mencius
-	Paxos
-	Base
-)
-
-type Instance int
-
-const (
-	Test Instance = iota
-	Master
-	Server
-	Client
-	ClientPerSec
-	ClientWithFail
-)
-
-var CurrentInstance Instance
-var CurrentApproach Approach
-
-func SetEnvironment() {
-	CurrentInstance = Instance(*role)
-	CurrentApproach = Approach(*app)
-	MAX_BATCH = *BatchSize
-	Auto_Balance = *AutoBalance != 0
-	PrintPerSec = *PrintIt != 0
-}
-
-// electionTimeout generates a pseudo-random election timeout duration.
-func RandomElectionTimeout() time.Duration {
-	min := *HeartBeatTimeout
-	max := *HeartBeatTimeout * 2
-	return time.Duration(min+rand.Intn(max-min)) * time.Millisecond
-}

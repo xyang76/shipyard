@@ -82,6 +82,10 @@ func NewReplica(id int, peerAddrList []string, thrifty bool, exec bool, dreply b
 		r.leadingStatus.StartTimer()
 	}
 
+	if *config.Recovered == 1 {
+		dlog.Info("Replica %v starting recovery mode", id)
+	}
+
 	r.apportion = NewApportion(r)
 	r.voteAndGatherRPC = r.RegisterRPC(new(VoteAndGatherArgs), r.voteAndGatherChan)
 	r.voteAndGatherReplyRPC = r.RegisterRPC(new(VoteAndGatherReply), r.voteAndGatherReplyChan)
@@ -188,7 +192,7 @@ func (r *Replica) run() {
 			break
 		case hbs := <-r.heartbeatChan:
 			args := hbs.(*HeartbeatArgs)
-			dlog.Printf("Received Heartbeat from leader %d\n")
+			dlog.Printf("Received Heartbeat from leader %d", args.Sender)
 			r.handleHeartbeat(args)
 		}
 	}
@@ -426,7 +430,9 @@ func (r *Replica) needBalance(shard int32, apportion int32) bool {
 func (r *Replica) checkBalance(shard int32, leaderId int32, apportion int32, skiff *Skiff) {
 	if config.Auto_Balance && r.apportion.Imbalance(int(apportion)) && !r.balancing {
 		r.balancing = true
-		dlog.Info("rep:%v-shard:%v need balance {received leader:%v-app:%v vs cur:%v}", r.Id, shard, leaderId, decodeApportion(int(apportion)), skiff.currentApportion)
+		t := decodeApportion(int(apportion))
+		s := decodeApportion(int(skiff.currentApportion))
+		dlog.Info("rep:%v-shard:%v need balance {received leader:%v-app:%v vs cur:%v}", r.Id, shard, leaderId, t, s)
 		time.AfterFunc(time.Duration(*config.BalanceRegenerate)*time.Millisecond, func() {
 			r.balancing = false
 		})

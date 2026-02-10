@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Get the ID passed as an argument
-num_iterations=1000
+num_iterations=2
 sleep_time=30
 method="$1"
 # Array to store PIDs
@@ -28,7 +28,7 @@ stop_process_using_port() {
 go run main.go -r 1 -N 5 &
 for ((i = 1; i < 6; i++)); do 
 (
-./start.sh "707$i" "$method" & pids+=($!)
+./start.sh "707$i" "$method" "0" & pids+=($!)
 ) &
 done
 
@@ -43,7 +43,7 @@ for (( i = 1; i <= num_iterations; i++ )); do
     wait $!
     sleep 5
     # Execute command
-    ./start.sh "707$random_index" "$method" & pid=$!
+    ./start.sh "707$random_index" "$method" "1" & pid=$!
     pids[$random_index]=$pid
     echo "Modified PIDs of $random_index: $random_id"
     echo "${pids[@]}"

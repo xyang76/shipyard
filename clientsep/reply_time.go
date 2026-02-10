@@ -1,4 +1,4 @@
-package shardclient
+package clientsep
 
 import (
 	"Mix/config"

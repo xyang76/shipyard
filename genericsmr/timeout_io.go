@@ -7,6 +7,14 @@ import (
 
 const CONN_TIMEOUT = 10 * time.Second
 
+type Fail int
+
+const (
+	OnRead Fail = iota
+	OnWrite
+	OnConnect
+)
+
 func WriteWithTimeout(
 	conn net.Conn,
 	fn func() error,

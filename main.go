@@ -2,11 +2,11 @@ package main
 
 import (
 	"Mix/client"
+	"Mix/clientsep"
 	"Mix/config"
 	"Mix/dlog"
 	"Mix/master"
 	"Mix/server"
-	"Mix/shardclient"
 	"flag"
 )
 
@@ -29,9 +29,9 @@ func main() {
 	} else if config.CurrentInstance == config.ClientPerSec {
 		//client.OneReq()
 		client.StartRecoveryShardClientSec()
-		//shardclient.StartClient1()
+		//clientsep.StartClient1()
 	} else if config.CurrentInstance == config.ClientWithFail {
-		shardclient.StartClient2()
+		clientsep.StartClient2()
 	}
 	//
 	//else if config.CurrentInstance == config.ClientWithFail {
