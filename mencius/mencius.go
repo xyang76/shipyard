@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const WAIT_BEFORE_SKIP_MS = 1
+const WAIT_BEFORE_SKIP_MS = 50
 const NB_INST_TO_SKIP = 100000
 const MAX_SKIPS_WAITING = 20
 const TRUE = uint8(1)
@@ -502,7 +502,7 @@ func (r *Replica) handlePrepare(prepare *menciusproto.Prepare) {
 }
 
 func (r *Replica) timerHelper(ds *DelayedSkip) {
-	time.Sleep(WAIT_BEFORE_SKIP_MS * 1000 * 1000)
+	time.Sleep(WAIT_BEFORE_SKIP_MS * time.Microsecond)
 	r.delayedSkipChan <- ds
 }
 
