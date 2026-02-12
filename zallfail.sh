@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Get the ID passed as an argument
-num_iterations=2
+num_iterations=20
 sleep_time=30
 method="$1"
 # Array to store PIDs
@@ -39,6 +39,7 @@ for (( i = 1; i <= num_iterations; i++ )); do
     echo "kill ${pids[random_index]}"
     #stop_process_using_port 1000"$random_index"
     stop_process_using_port 707"$random_index"
+    stop_process_using_port 907"$random_index"
     kill -9 ${pids[random_index]} &
     wait $!
     sleep 5

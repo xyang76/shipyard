@@ -20,13 +20,6 @@ import (
 	"time"
 )
 
-type ShardConn struct {
-	conn         net.Conn
-	reader       *bufio.Reader
-	writer       *bufio.Writer
-	writeCounter int
-}
-
 type ReplyTime struct {
 	round         int
 	numReqs       int
@@ -78,12 +71,29 @@ func (rt *ReplyTime) ReplyArrival(reply *genericsmrproto.ProposeReplyTS) {
 	}
 }
 
+func (rt *ReplyTime) ReplySkip(reqID int32) {
+	r := int(reqID) / rt.numReqs
+	key := state.Key(reqID)
+	sid, _ := rt.shards.GetShardId(key)
+	atomic.StoreInt64(&rt.replyTimes[r], time.Now().UnixNano())
+	arrivals := atomic.AddInt64(&rt.roundArrivals[r], 1)
+	atomic.AddInt64(&rt.shardArrival[sid], 1)
+	time.Sleep(1 * time.Second)
+	if arrivals == int64(rt.numReqs) {
+		select {
+		case rt.done[r] <- true:
+		default:
+			// already signaled
+		}
+	}
+}
+
 type ShardClient struct {
 	replicas []string
 	shards   *shard.ShardInfo
 
 	mu      sync.RWMutex
-	leaders map[int32]*ShardConn
+	leaders map[int32]*BaseConn
 	// only one leader search per shard
 	searching map[int32]bool
 	rng       *rand.Rand
@@ -109,7 +119,7 @@ func NewShardClient(replicas []string, shards *shard.ShardInfo, replyTime *Reply
 	return &ShardClient{
 		replicas:  clientAddrs,
 		shards:    shards,
-		leaders:   make(map[int32]*ShardConn),
+		leaders:   make(map[int32]*BaseConn),
 		searching: make(map[int32]bool),
 		replyTime: replyTime,
 		rng:       rand.New(rand.NewSource(time.Now().UnixNano())),
@@ -128,7 +138,7 @@ func (c *ShardClient) Skipped() int64 {
 	return atomic.LoadInt64(&c.skipped)
 }
 
-func (c *ShardClient) findPaxosLeader(master *rpc.Client) *ShardConn {
+func (c *ShardClient) findPaxosLeader(master *rpc.Client) *BaseConn {
 	reply := new(masterproto.GetLeaderReply)
 	if err := master.Call("Master.GetLeader", new(masterproto.GetLeaderArgs), reply); err != nil {
 		log.Fatalf("Error making the GetLeader RPC\n")
@@ -138,7 +148,7 @@ func (c *ShardClient) findPaxosLeader(master *rpc.Client) *ShardConn {
 	return nil
 }
 
-func (c *ShardClient) findLeader(sid int32) *ShardConn {
+func (c *ShardClient) findLeader(sid int32) *BaseConn {
 	for _, addr := range c.replicas {
 		dlog.Info("dial replica %v", addr)
 		conn, err := net.DialTimeout("tcp", addr, genericsmr.CONN_TIMEOUT)
@@ -181,7 +191,7 @@ func (c *ShardClient) findLeader(sid int32) *ShardConn {
 		if reply.OK != 0 {
 			fmt.Printf("Leader for shard %d found at %s\n", sid, addr)
 
-			sc := &ShardConn{
+			sc := &BaseConn{
 				conn:   conn,
 				reader: r,
 				writer: w,
@@ -195,7 +205,7 @@ func (c *ShardClient) findLeader(sid int32) *ShardConn {
 			go c.replyReader(sid, sc)
 			return sc
 		}
-
+		fmt.Printf("Leader for shard %d not found at %s\n", sid, addr)
 		conn.Close()
 	}
 
@@ -208,13 +218,12 @@ func (c *ShardClient) findLeaderAsync(sid int32, finishChan chan struct{}) {
 	for _, addr := range c.replicas {
 		addr := addr // capture loop variable
 		wg.Add(1)
-
 		go func() {
+			defer wg.Done()
 			conn, err := net.DialTimeout("tcp", addr, genericsmr.CONN_TIMEOUT)
 			if err != nil {
 				return
 			}
-
 			r := bufio.NewReader(conn)
 			w := bufio.NewWriter(conn)
 
@@ -225,7 +234,6 @@ func (c *ShardClient) findLeaderAsync(sid int32, finishChan chan struct{}) {
 					K:  state.Key(sid),
 				},
 			}
-
 			err = genericsmr.WriteWithTimeout(conn, func() error {
 				if err := w.WriteByte(genericsmrproto.PROPOSE); err != nil {
 					return err
@@ -248,7 +256,8 @@ func (c *ShardClient) findLeaderAsync(sid int32, finishChan chan struct{}) {
 			}
 
 			if reply.OK != 0 {
-				sc := &ShardConn{
+				dlog.Info("Searching find leader %v ...", addr)
+				sc := &BaseConn{
 					conn:   conn,
 					reader: r,
 					writer: w,
@@ -267,6 +276,8 @@ func (c *ShardClient) findLeaderAsync(sid int32, finishChan chan struct{}) {
 					return
 				}
 				c.mu.Unlock()
+			} else {
+				dlog.Info("Searching not find leader %v ...", addr)
 			}
 
 			conn.Close()
@@ -280,7 +291,7 @@ func (c *ShardClient) findLeaderAsync(sid int32, finishChan chan struct{}) {
 	}()
 }
 
-func (c *ShardClient) replyReader(sid int32, sc *ShardConn) {
+func (c *ShardClient) replyReader(sid int32, sc *BaseConn) {
 	reply := new(genericsmrproto.ProposeReplyTS)
 
 	for {
@@ -318,8 +329,9 @@ func (c *ShardClient) replyReader(sid int32, sc *ShardConn) {
 	}
 }
 
-func (c *ShardClient) CloseLeader(sid int32, sc *ShardConn) {
+func (c *ShardClient) CloseLeader(sid int32, sc *BaseConn) {
 	c.mu.Lock()
+	dlog.Info("Leader %v fail, close the leader now!", sid)
 	if cur, ok := c.leaders[sid]; ok && cur == sc {
 		delete(c.leaders, sid)
 		_ = sc.conn.Close()
@@ -378,7 +390,7 @@ func (c *ShardClient) NonBlockSend(reqID int32, key state.Key, op state.Operatio
 			c.mu.Lock()
 			c.searching[sid] = true
 			c.mu.Unlock()
-
+			dlog.Info("Start leader searching ... ")
 			finishChan := make(chan struct{})
 
 			go func() {
@@ -386,12 +398,12 @@ func (c *ShardClient) NonBlockSend(reqID int32, key state.Key, op state.Operatio
 
 				// Wait for discovery to finish
 				<-finishChan
-
 				c.mu.Lock()
 				c.searching[sid] = false
 
 				// If still no leader after probing, clean up
 				if _, ok := c.leaders[sid]; !ok {
+					dlog.Info("Still no leader found ... ")
 					delete(c.leaders, sid)
 				}
 
@@ -400,6 +412,7 @@ func (c *ShardClient) NonBlockSend(reqID int32, key state.Key, op state.Operatio
 		}
 
 		atomic.AddInt64(&c.skipped, 1)
+		c.replyTime.ReplySkip(reqID)
 		return
 	}
 

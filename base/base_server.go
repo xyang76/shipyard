@@ -45,7 +45,7 @@ func (r *Replica) run() {
 
 		case prop := <-onOffProposeChan:
 			// got a client propose
-			dlog.Info("Base replica got proposal Op=%d Id=%d\n", prop.Command.Op, prop.CommandId)
+			//dlog.Info("Base replica got proposal Op=%d Id=%d", prop.Command.Op, prop.CommandId)
 			r.handlePropose(prop)
 			// after receiving a proposal, optionally pause accepting more to prioritize internal messages
 			onOffProposeChan = nil
@@ -57,6 +57,6 @@ func (r *Replica) run() {
 func (r *Replica) handlePropose(propose *genericsmr.Propose) {
 	dlog.Print("%d received propose %v\n", r.Id, propose.Command)
 
-	preply := &genericsmrproto.ProposeReplyTS{config.TRUE, -1, state.NIL, 0}
+	preply := &genericsmrproto.ProposeReplyTS{config.TRUE, propose.CommandId, state.NIL, 0}
 	r.ReplyProposeTS(preply, propose.Reply)
 }

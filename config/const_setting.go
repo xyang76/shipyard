@@ -21,13 +21,13 @@ var NumNodes *int = flag.Int("N", 5, "Number of replicas. Defaults to 3.")
 var Procs *int = flag.Int("p", 2, "GOMAXPROCS. Defaults to 2")
 
 // Shards
-var ShardNum *int = flag.Int("s", 5, "Number of shards. Only used for multi-raft and shipyard.")
+var ShardNum *int = flag.Int("s", 3, "Number of shards. Only used for multi-raft and shipyard.")
 var ShardStatus *bool = flag.Bool("status", false, "Show shard leading status.")
 var SeperateClientPort *bool = flag.Bool("sp", true, "Seperate client ports and peer ports.")
 
 // Raft and Shipyard
 var HeartBeatInterval *int = flag.Int("hi", 1000, "Heartbeat interval in milliseconds")
-var HeartBeatTimeout *int = flag.Int("ht", 8000, "Heartbeat timeout in milliseconds")
+var HeartBeatTimeout *int = flag.Int("ht", 3000, "Heartbeat timeout in milliseconds")
 var RaftElectionInterval *int = flag.Int("et", 1000, "election timeout in milliseconds")
 var BalanceRegenerate *int = flag.Int("to", 500, "Token regeneration in milliseconds")
 var ReplyReceiveTimeout *int = flag.Int("rrt", 10000, "Since leader may crash, lost connection, we need this timeout to count elapse")
@@ -36,6 +36,12 @@ var AutoBalance *int = flag.Int("ab", 1, "auto balance")
 var Balanced *int = flag.Int("b", 0, "balanced")
 var PrintIt *int = flag.Int("pp", 0, "auto balance")
 var Recovered *int = flag.Int("rec", 0, "auto balance")
+
+// Client
+var ReqsNum *int = flag.Int("q", 1000, "Total number of requests. Defaults to 5000.")
+var Writes *int = flag.Int("w", 70, "Percentage of updates (Writes). Defaults to 100%.")
+var Rounds *int = flag.Int("rnd", 10, "Split the total number of requests into this many Rounds, and do Rounds sequentially. Defaults to 1.")
+var Conflicts *int = flag.Int("c", 0, "Percentage of conflicts. Defaults to 0%")
 
 const CHAN_BUFFER_SIZE = 60000
 const LOG_SIZE = 512 * 1024

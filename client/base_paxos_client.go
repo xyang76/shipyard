@@ -11,14 +11,10 @@ import (
 	"sync/atomic"
 )
 
-var ReqsNum *int = flag.Int("q", 1000, "Total number of requests. Defaults to 5000.")
-var Writes *int = flag.Int("w", 70, "Percentage of updates (Writes). Defaults to 100%.")
 var noLeader *bool = flag.Bool("e", false, "Egalitarian (no leader). Defaults to false.")
 var fast *bool = flag.Bool("f", false, "Fast Paxos: send message directly to all replicas. Defaults to false.")
-var Rounds *int = flag.Int("rnd", 10, "Split the total number of requests into this many Rounds, and do Rounds sequentially. Defaults to 1.")
 var check = flag.Bool("check", false, "Check that every expected reply was received exactly once.")
 var eps *int = flag.Int("eps", 0, "Send eps more messages per round than the client will wait for (to discount stragglers). Defaults to 0.")
-var conflicts *int = flag.Int("c", 0, "Percentage of conflicts. Defaults to 0%")
 var s = flag.Float64("zs", 2, "Zipfian s parameter")
 var v = flag.Float64("zv", 1, "Zipfian v parameter")
 

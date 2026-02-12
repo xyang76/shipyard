@@ -22,8 +22,8 @@ func StartPaxosClient2() {
 
 	// --- random key generation ---
 	randObj := rand.New(rand.NewSource(42))
-	zipf := rand.NewZipf(randObj, *s, *v, uint64(*ReqsNum / *Rounds + *eps))
-	if *conflicts > 100 {
+	zipf := rand.NewZipf(randObj, *s, *v, uint64(*config.ReqsNum / *config.Rounds + *eps))
+	if *config.Conflicts > 100 {
 		log.Fatalf("Conflicts percentage must be 0..100")
 	}
 
@@ -42,23 +42,23 @@ func StartPaxosClient2() {
 	}
 
 	shards := shard.NewShardInfo()
-	replyTime := NewReplyTime(*Rounds, *ReqsNum / *Rounds, shards)
+	replyTime := NewReplyTime(*config.Rounds, *config.ReqsNum / *config.Rounds, shards)
 	client := NewPaxosClient(rlReply.ReplicaList, replyTime, *noLeader)
 
 	// --- generate requests ---
-	rarray := make([]int, *ReqsNum / *Rounds + *eps)
+	rarray := make([]int, *config.ReqsNum / *config.Rounds + *eps)
 	karray := make([]int64, len(rarray))
 	put := make([]bool, len(rarray))
 	for i := 0; i < len(rarray); i++ {
 		r := rand.Intn(client.N)
 		rarray[i] = r
-		if *conflicts >= 0 {
-			if rand.Intn(100) < *conflicts {
+		if *config.Conflicts >= 0 {
+			if rand.Intn(100) < *config.Conflicts {
 				karray[i] = 42
 			} else {
 				karray[i] = int64(43 + i)
 			}
-			put[i] = rand.Intn(100) < *Writes
+			put[i] = rand.Intn(100) < *config.Writes
 		} else {
 			karray[i] = int64(zipf.Uint64())
 		}
@@ -75,8 +75,8 @@ func StartPaxosClient2() {
 	before_total := time.Now()
 	elapsed_sum := int64(0)
 	reqID := int32(0)
-	for round := 0; round < *Rounds; round++ {
-		n := *ReqsNum / *Rounds
+	for round := 0; round < *config.Rounds; round++ {
+		n := *config.ReqsNum / *config.Rounds
 		startTime := time.Now()
 
 		for i := 0; i < n+*eps; i++ {

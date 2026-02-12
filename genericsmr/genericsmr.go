@@ -135,6 +135,9 @@ func (r *Replica) ConnectToPeers() {
 	var b [4]byte
 	bs := b[:4]
 	done := make(chan bool)
+	if *config.Recovered == 1 {
+		dlog.Info("replica %v is recovering, connect to peers ...", r.Id)
+	}
 
 	go r.waitForPeerConnections(done)
 
@@ -157,6 +160,9 @@ func (r *Replica) ConnectToPeers() {
 		r.Connecting[i] = false
 		r.PeerReaders[i] = bufio.NewReader(r.Peers[i])
 		r.PeerWriters[i] = bufio.NewWriter(r.Peers[i])
+		if *config.Recovered == 1 {
+			dlog.Info("replica %v is recovering, connected to peers %v [addr:%v]...", r.Id, i, r.PeerAddrList[i])
+		}
 	}
 	<-done
 	log.Printf("Replica id: %d. Done connecting to peers\n", r.Id)
@@ -466,7 +472,7 @@ func (r *Replica) SendMsgFailProne(peerId int32, code uint8, msg fastrpc.Seriali
 	conn := r.Peers[peerId]
 	w := r.PeerWriters[peerId]
 	if conn == nil || w == nil || !r.Alive[peerId] {
-		dlog.Print("%d->%d connection is lost, [%v, %v, %v]", r.Id, peerId, conn == nil, w == nil, !r.Alive[peerId])
+		dlog.Info("%d->%d connection is lost, [%v, %v, %v]", r.Id, peerId, conn == nil, w == nil, !r.Alive[peerId])
 		return
 	}
 
@@ -479,6 +485,7 @@ func (r *Replica) SendMsgFailProne(peerId int32, code uint8, msg fastrpc.Seriali
 	})
 
 	if err != nil {
+		dlog.Info("%d->%d connection is err %v", r.Id, peerId, err)
 		r.failHandler(peerId, err, OnWrite)
 	}
 }
@@ -494,17 +501,56 @@ func (r *Replica) SendMsgNoFail(peerId int32, code uint8, msg fastrpc.Serializab
 }
 
 func (r *Replica) SendMsgNoFlush(peerId int32, code uint8, msg fastrpc.Serializable) {
-	w := r.PeerWriters[peerId]
-	w.WriteByte(code)
-	msg.Marshal(w)
+	if !config.Fail_Prone {
+		w := r.PeerWriters[peerId]
+		w.WriteByte(code)
+		msg.Marshal(w)
+	} else {
+		conn := r.Peers[peerId]
+		w := r.PeerWriters[peerId]
+		if conn == nil || w == nil {
+			dlog.Print("%d->%d connection is lost, [%v, %v, %v]", r.Id, peerId, conn == nil, w == nil, !r.Alive[peerId])
+			return
+		}
+		err := WriteWithTimeout(conn, func() error {
+			if err := w.WriteByte(code); err != nil {
+				return err
+			}
+			msg.Marshal(w)
+			return nil
+		})
+
+		if err != nil {
+			r.failHandler(peerId, err, OnWrite)
+		}
+	}
 }
 
 func (r *Replica) SendBeacon(peerId int32) {
-	w := r.PeerWriters[peerId]
-	w.WriteByte(genericsmrproto.GENERIC_SMR_BEACON)
-	beacon := &genericsmrproto.Beacon{rdtsc.Cputicks()}
-	beacon.Marshal(w)
-	w.Flush()
+	if !config.Fail_Prone {
+		w := r.PeerWriters[peerId]
+		w.WriteByte(genericsmrproto.GENERIC_SMR_BEACON)
+		beacon := &genericsmrproto.Beacon{rdtsc.Cputicks()}
+		beacon.Marshal(w)
+		w.Flush()
+	} else {
+		conn := r.Peers[peerId]
+		w := r.PeerWriters[peerId]
+		if conn == nil || w == nil {
+			dlog.Print("%d->%d connection is lost, [%v, %v, %v]", r.Id, peerId, conn == nil, w == nil, !r.Alive[peerId])
+			return
+		}
+		err := WriteWithTimeout(conn, func() error {
+			w.WriteByte(genericsmrproto.GENERIC_SMR_BEACON)
+			beacon := &genericsmrproto.Beacon{rdtsc.Cputicks()}
+			beacon.Marshal(w)
+			return w.Flush()
+		})
+
+		if err != nil {
+			r.failHandler(peerId, err, OnWrite)
+		}
+	}
 }
 
 func (r *Replica) ReplyBeacon(beacon *Beacon) {

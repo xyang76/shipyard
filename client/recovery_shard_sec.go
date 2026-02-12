@@ -20,7 +20,7 @@ func StartRecoveryShardClientSec() {
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	if *conflicts > 100 {
+	if *config.Conflicts > 100 {
 		log.Fatalf("Conflicts percentage must be between 0 and 100.\n")
 	}
 
@@ -42,8 +42,8 @@ func StartRecoveryShardClientSec() {
 		log.Fatalf("No replicas returned by the master")
 	}
 
-	batch := *ReqsNum
-	writePercent := *Writes
+	batch := *config.ReqsNum
+	writePercent := *config.Writes
 	turns := 100
 	shards := shard.NewShardInfo()
 	replyTime := NewReplyTime(turns, batch, shards)

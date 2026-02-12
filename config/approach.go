@@ -57,3 +57,11 @@ func RandomElectionTimeout() time.Duration {
 	max := *HeartBeatTimeout * 2
 	return time.Duration(min+rand.Intn(max-min)) * time.Millisecond
 }
+
+func NeedLeaderDiscovery() bool {
+	if CurrentApproach == Raft || CurrentApproach == MultiRaft || CurrentApproach == Shipyard {
+		return true
+	} else {
+		return false
+	}
+}

@@ -2,7 +2,7 @@ package main
 
 import (
 	"Mix/client"
-	"Mix/clientsep"
+	"Mix/clientfail"
 	"Mix/config"
 	"Mix/dlog"
 	"Mix/master"
@@ -31,7 +31,8 @@ func main() {
 		client.StartRecoveryShardClientSec()
 		//clientsep.StartClient1()
 	} else if config.CurrentInstance == config.ClientWithFail {
-		clientsep.StartClient2()
+		//clientsep.StartClient2()
+		clientfail.StartFailClient()
 	}
 	//
 	//else if config.CurrentInstance == config.ClientWithFail {

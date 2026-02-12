@@ -1022,7 +1022,6 @@ func (r *Replica) handlePreAcceptReply(pareply *epaxosproto.PreAcceptReply) {
 	}
 
 	inst.lb.preAcceptOKs++
-	dlog.Info("I am here!")
 	var equal bool
 	inst.Seq, inst.Deps, equal = r.mergeAttributes(inst.Seq, inst.Deps, pareply.Seq, pareply.Deps)
 	if (r.N <= 5 && !r.Thrifty) || inst.lb.preAcceptOKs > 1 {
@@ -1033,6 +1032,11 @@ func (r *Replica) handlePreAcceptReply(pareply *epaxosproto.PreAcceptReply) {
 	}
 
 	allCommitted := true
+
+	if len(inst.lb.committedDeps) == 0 {
+		inst.lb.committedDeps = make([]int32, r.N)
+	}
+
 	for q := 0; q < r.N; q++ {
 		if inst.lb.committedDeps[q] < pareply.CommittedDeps[q] {
 			inst.lb.committedDeps[q] = pareply.CommittedDeps[q]

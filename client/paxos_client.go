@@ -24,9 +24,9 @@ func StartPaxosClient() {
 	runtime.GOMAXPROCS(*config.Procs)
 
 	randObj := rand.New(rand.NewSource(42))
-	zipf := rand.NewZipf(randObj, *s, *v, uint64(*ReqsNum / *Rounds + *eps))
+	zipf := rand.NewZipf(randObj, *s, *v, uint64(*config.ReqsNum / *config.Rounds + *eps))
 
-	if *conflicts > 100 {
+	if *config.Conflicts > 100 {
 		log.Fatalf("Conflicts percentage must be between 0 and 100.\n")
 	}
 
@@ -46,27 +46,27 @@ func StartPaxosClient() {
 	readers := make([]*bufio.Reader, N)
 	writers := make([]*bufio.Writer, N)
 
-	rarray = make([]int, *ReqsNum / *Rounds + *eps)
-	karray := make([]int64, *ReqsNum / *Rounds + *eps)
-	put := make([]bool, *ReqsNum / *Rounds + *eps)
+	rarray = make([]int, *config.ReqsNum / *config.Rounds + *eps)
+	karray := make([]int64, *config.ReqsNum / *config.Rounds + *eps)
+	put := make([]bool, *config.ReqsNum / *config.Rounds + *eps)
 	perReplicaCount := make([]int, N)
-	test := make([]int, *ReqsNum / *Rounds + *eps)
+	test := make([]int, *config.ReqsNum / *config.Rounds + *eps)
 	for i := 0; i < len(rarray); i++ {
 		r := rand.Intn(N)
 		rarray[i] = r
-		if i < *ReqsNum / *Rounds {
+		if i < *config.ReqsNum / *config.Rounds {
 			perReplicaCount[r]++
 		}
 
-		if *conflicts >= 0 {
+		if *config.Conflicts >= 0 {
 			r = rand.Intn(100)
-			if r < *conflicts {
+			if r < *config.Conflicts {
 				karray[i] = 42
 			} else {
 				karray[i] = int64(43 + i)
 			}
 			r = rand.Intn(100)
-			if r < *Writes {
+			if r < *config.Writes {
 				put[i] = true
 			} else {
 				put[i] = false
@@ -76,7 +76,7 @@ func StartPaxosClient() {
 			test[karray[i]]++
 		}
 	}
-	if *conflicts >= 0 {
+	if *config.Conflicts >= 0 {
 		fmt.Println("Uniform distribution")
 	} else {
 		fmt.Println("Zipfian distribution:")
@@ -111,9 +111,9 @@ func StartPaxosClient() {
 
 	before_total := time.Now()
 
-	for j := 0; j < *Rounds; j++ {
+	for j := 0; j < *config.Rounds; j++ {
 
-		n := *ReqsNum / *Rounds
+		n := *config.ReqsNum / *config.Rounds
 
 		if *check {
 			rsp = make([]bool, n)

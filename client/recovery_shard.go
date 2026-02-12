@@ -2,6 +2,7 @@ package client
 
 import (
 	"Mix/config"
+	"Mix/dlog"
 	"Mix/masterproto"
 	"Mix/shard"
 	"Mix/state"
@@ -19,7 +20,7 @@ func StartRecoveryShardClient() {
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	if *conflicts > 100 {
+	if *config.Conflicts > 100 {
 		log.Fatalf("Conflicts percentage must be between 0 and 100.\n")
 	}
 
@@ -43,10 +44,9 @@ func StartRecoveryShardClient() {
 
 	// initial parameters
 	shards := shard.NewShardInfo()
-	reqsPerRound := *ReqsNum
-	//round := *Rounds
-	round := *Rounds
-	writePercent := *Writes
+	reqsPerRound := *config.ReqsNum
+	round := *config.Rounds
+	writePercent := *config.Writes
 	reqID := int32(0)
 	last := int64(0)
 	replyTime := NewReplyTime(round, reqsPerRound, shards)
@@ -68,6 +68,7 @@ func StartRecoveryShardClient() {
 		client.findLeader(sid)
 	}
 
+	dlog.Info("starting client tests now ... ")
 	before_total := time.Now()
 	elapsed_sum := int64(0)
 	// steps for two loops
@@ -78,7 +79,7 @@ func StartRecoveryShardClient() {
 			key := state.Key(int(reqID))
 			if config.CurrentApproach == config.EPaxos || config.CurrentApproach == config.Mencius {
 				conflict := client.RandomValue()
-				if conflict <= *conflicts {
+				if conflict <= *config.Conflicts {
 					key = state.Key(42)
 				} else {
 					key = state.Key(43 + reqID)
