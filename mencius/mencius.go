@@ -10,7 +10,6 @@ import (
 	"Mix/state"
 	"encoding/binary"
 	"io"
-	"log"
 	"time"
 )
 
@@ -187,7 +186,7 @@ func (r *Replica) run() {
 	go r.clock()
 
 	onOffProposeChan := r.ProposeChan
-	tick := time.NewTicker(time.Duration(*config.TickTime) * time.Second)
+	tick := time.NewTicker(time.Duration(*config.TickTime) * time.Millisecond)
 	defer tick.Stop()
 
 	for !r.Shutdown {
@@ -596,13 +595,55 @@ func (r *Replica) handleAccept(accept *menciusproto.Accept) {
 	}
 }
 
-func (r *Replica) handleDelayedSkip(delayedSkip *DelayedSkip) {
+/* In Epaxos'r repo, this implementation does not match Mencius paper*/
+//func (r *Replica) handleDelayedSkip(delayedSkip *DelayedSkip) {
+//	r.skipsWaiting--
+//	for _, w := range r.PeerWriters {
+//		if w != nil {
+//			w.Flush()
+//		}
+//	}
+//}
+
+func (r *Replica) handleDelayedSkip(ds *DelayedSkip) {
 	r.skipsWaiting--
-	for _, w := range r.PeerWriters {
-		if w != nil {
-			w.Flush()
+
+	start := r.blockingInstance
+	end := ds.skipEnd
+
+	dlog.Printf("Force skipping %d-%d\n", start, end)
+
+	for i := start; i <= end; i++ {
+		if r.instanceSpace[i] != nil {
+			// Do not overwrite a real instance
+			continue
+		}
+
+		// create skipped instance
+		r.instanceSpace[i] = &Instance{
+			skipped:       true,
+			nbInstSkipped: int(end-start)/r.N + 1,
+			command:       nil,
+			ballot:        0,
+			status:        COMMITTED,
+			lb:            nil,
+		}
+
+		// reply to client if there was a proposal
+		if r.instanceSpace[i].lb != nil && r.instanceSpace[i].lb.clientProposal != nil {
+			proposal := r.instanceSpace[i].lb.clientProposal
+			dlog.Printf("Replying SKIPPED for req. %d in instance %d\n", proposal.CommandId, i)
+			r.ReplyProposeTS(&genericsmrproto.ProposeReplyTS{
+				OK:        FALSE,
+				CommandId: proposal.CommandId,
+				Value:     state.Skipped,
+				Timestamp: proposal.Timestamp,
+			}, proposal.Reply)
+			r.instanceSpace[i].lb.clientProposal = nil
 		}
 	}
+	r.bcastSkip(start, end, -1)
+	r.updateBlocking(start)
 }
 
 func (r *Replica) handleCommit(commit *menciusproto.Commit) {
@@ -700,6 +741,9 @@ func (r *Replica) handleAcceptReply(areply *menciusproto.AcceptReply) {
 	dlog.Printf("AcceptReply for instance %d\n", areply.Instance)
 
 	inst := r.instanceSpace[areply.Instance]
+	if inst == nil || inst.lb == nil {
+		return
+	}
 
 	if areply.OK == TRUE {
 		inst.lb.acceptOKs++
@@ -761,6 +805,10 @@ func (r *Replica) updateBlocking(instance int32) {
 			return
 		}
 		inst := r.instanceSpace[r.blockingInstance]
+		// nil instance: stop only if it’s not covered by skippedTo
+		if inst == nil {
+			return
+		}
 		if inst.status == COMMITTED && inst.skipped {
 			r.skippedTo[int(r.blockingInstance)%r.N] = r.blockingInstance + int32((inst.nbInstSkipped-1)*r.N)
 			continue
@@ -883,22 +931,26 @@ func (r *Replica) executeCommands() {
 }
 
 func (r *Replica) forceCommit() {
-	//find what is the oldest un-initialized instance and try to take over
+	// find the oldest un-initialized instance
 	problemInstance := r.blockingInstance
 
-	//try to take over the problem instance
+	// only try to take over if this replica is responsible
 	if int(problemInstance)%r.N == int(r.Id+1)%r.N {
-		log.Println("Replica", r.Id, "Trying to take over instance", problemInstance)
+		dlog.Printf("Replica %d Trying to take over instance %d\n", r.Id, problemInstance)
+
 		if r.instanceSpace[problemInstance] == nil {
-			r.instanceSpace[problemInstance] = &Instance{true,
+			r.instanceSpace[problemInstance] = &Instance{
+				true, // mark as skipped
 				NB_INST_TO_SKIP,
 				&state.Command{state.NONE, 0, 0},
 				r.makeUniqueBallot(1),
 				PREPARING,
-				&LeaderBookkeeping{nil, 0, 0, 0, 0}}
+				&LeaderBookkeeping{nil, 0, 0, 0, 0},
+			}
 			r.bcastPrepare(problemInstance, r.instanceSpace[problemInstance].ballot)
 		} else {
-			log.Println("Not nil")
+			// instance already exists: do nothing, just return safely
+			return
 		}
 	}
 }

@@ -34,7 +34,7 @@ var ReplyReceiveTimeout *int = flag.Int("rrt", 10000, "Since leader may crash, l
 var BatchSize *int = flag.Int("mb", 10, "max batch size")
 var AutoBalance *int = flag.Int("ab", 1, "auto balance")
 var Balanced *int = flag.Int("b", 0, "balanced")
-var PrintIt *int = flag.Int("pp", 0, "auto balance")
+var PrintIt *int = flag.Int("pp", 1, "auto balance")
 var Recovered *int = flag.Int("rec", 0, "auto balance")
 
 // Client

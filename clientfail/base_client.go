@@ -29,10 +29,7 @@ type BaseClient struct {
 	discovery bool
 	rng       *rand.Rand
 
-	success int64
-	skipped int64
-	failed  int64
-	notify  *FinishNotify
+	notify *FinishNotify
 }
 
 func NewBaseClient(replicas []string) *BaseClient {
@@ -124,14 +121,15 @@ func (c *BaseClient) findLeader(sid int32) int {
 }
 
 func (c *BaseClient) StartTests() {
-	dlog.Info("starting client tests now ... ")
-	before_total := time.Now()
 	elapsed_sum := int64(0)
 	reqsPerRound := *config.ReqsNum
 	writePercent := *config.Writes
 	round := *config.Rounds
 	reqID := int32(0)
 	notify := c.notify
+	dlog.Info("starting client tests now [rounds:%v, req:%v]... ", round, reqsPerRound)
+
+	before_total := time.Now()
 	// steps for two loops
 	for r := 0; r < round; r++ {
 		startTime := time.Now()
@@ -140,7 +138,6 @@ func (c *BaseClient) StartTests() {
 			key := state.Key(int(reqID))
 			connId := int32(c.getConn(reqID, key))
 			if connId == -1 {
-				c.skipped++
 				notify.notifyCommandSkip(reqID)
 				continue
 			}
@@ -211,13 +208,17 @@ func (c *BaseClient) getConn(reqId int32, key state.Key) int {
 }
 
 func (c *BaseClient) PrintInfo() {
-	//total := 0
-	//for {
-	//	//fmt.Printf("replicas total %v\n", total)
-	//	c.notify.printInfo()
-	//	time.Sleep(time.Second)
-	//	total++
-	//}
+	last := int64(0)
+	if config.PrintPerSec {
+		go func(reply *FinishNotify) {
+			t := time.NewTicker(1 * time.Second)
+			for range t.C {
+				fmt.Printf("Success so far: %d, this round %d, skipped:%v, send:%v\n",
+					reply.success, reply.success-last, reply.skipped, 0)
+				last = reply.success
+			}
+		}(c.notify)
+	}
 }
 
 func (c *BaseClient) RandomValue() int {

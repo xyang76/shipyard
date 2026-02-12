@@ -25,6 +25,7 @@ const ISLeader Value = -1000
 const NOTLeader Value = -999
 const ChanFull Value = -998
 const Truncated Value = -997
+const Skipped Value = -996
 
 type Key int64
 
