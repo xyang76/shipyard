@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const WAIT_BEFORE_SKIP_MS = 50
+const WAIT_BEFORE_SKIP_MS = 1
 const NB_INST_TO_SKIP = 100000
 const MAX_SKIPS_WAITING = 20
 const TRUE = uint8(1)
@@ -525,7 +525,7 @@ func (r *Replica) handleAccept(accept *menciusproto.Accept) {
 		}
 		if r.skipsWaiting < MAX_SKIPS_WAITING {
 			//start a timer, waiting for a propose to arrive and fill this hole
-			go r.timerHelper(&DelayedSkip{skipEnd})
+			r.timerHelper(&DelayedSkip{skipEnd})
 			//r.delayedSkipChan <- &DelayedSkip{accept, skipStart}
 			r.skipsWaiting++
 			flush = false
@@ -595,23 +595,13 @@ func (r *Replica) handleAccept(accept *menciusproto.Accept) {
 	}
 }
 
-/* In Epaxos'r repo, this implementation does not match Mencius paper*/
-//func (r *Replica) handleDelayedSkip(delayedSkip *DelayedSkip) {
-//	r.skipsWaiting--
-//	for _, w := range r.PeerWriters {
-//		if w != nil {
-//			w.Flush()
-//		}
-//	}
-//}
-
 func (r *Replica) handleDelayedSkip(ds *DelayedSkip) {
 	r.skipsWaiting--
 
 	start := r.blockingInstance
 	end := ds.skipEnd
 
-	dlog.Printf("Force skipping %d-%d\n", start, end)
+	dlog.Print("Force skipping %d-%d\n", start, end)
 
 	for i := start; i <= end; i++ {
 		if r.instanceSpace[i] != nil {
@@ -642,7 +632,6 @@ func (r *Replica) handleDelayedSkip(ds *DelayedSkip) {
 			r.instanceSpace[i].lb.clientProposal = nil
 		}
 	}
-	time.Sleep(3 * time.Millisecond)
 	r.bcastSkip(start, end, -1)
 	r.updateBlocking(start)
 }
