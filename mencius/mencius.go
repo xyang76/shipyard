@@ -642,6 +642,7 @@ func (r *Replica) handleDelayedSkip(ds *DelayedSkip) {
 			r.instanceSpace[i].lb.clientProposal = nil
 		}
 	}
+	time.Sleep(3 * time.Millisecond)
 	r.bcastSkip(start, end, -1)
 	r.updateBlocking(start)
 }
