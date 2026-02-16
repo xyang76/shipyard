@@ -36,6 +36,7 @@ var AutoBalance *int = flag.Int("ab", 1, "auto balance")
 var Balanced *int = flag.Int("b", 0, "balanced")
 var PrintIt *int = flag.Int("pp", 1, "auto balance")
 var Recovered *int = flag.Int("rec", 0, "auto balance")
+var MSleepTime *int = flag.Int("msl", 50, "msleep time")
 
 // Client
 var ReqsNum *int = flag.Int("q", 1000, "Total number of requests. Defaults to 5000.")
