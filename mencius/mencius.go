@@ -595,22 +595,28 @@ func (r *Replica) handleAccept(accept *menciusproto.Accept) {
 	}
 }
 
+//func (r *Replica) handleDelayedSkip(ds *DelayedSkip) {
+//	r.skipsWaiting--
+//	for _, w := range r.PeerWriters {
+//		if w != nil {
+//			w.Flush()
+//		}
+//	}
+//}
+
 func (r *Replica) handleDelayedSkip(ds *DelayedSkip) {
 	r.skipsWaiting--
 
 	start := r.blockingInstance
 	end := ds.skipEnd
 
-	dlog.Print("Force skipping %d-%d\n", start, end)
-
 	for i := start; i <= end; i++ {
+		// Do not overwrite an existing instance
 		if r.instanceSpace[i] != nil {
-			// Do not overwrite a real instance
 			continue
 		}
 
-		// create skipped instance
-		r.instanceSpace[i] = &Instance{
+		inst := &Instance{
 			skipped:       true,
 			nbInstSkipped: int(end-start)/r.N + 1,
 			command:       nil,
@@ -619,22 +625,63 @@ func (r *Replica) handleDelayedSkip(ds *DelayedSkip) {
 			lb:            nil,
 		}
 
-		// reply to client if there was a proposal
-		if r.instanceSpace[i].lb != nil && r.instanceSpace[i].lb.clientProposal != nil {
-			proposal := r.instanceSpace[i].lb.clientProposal
-			dlog.Printf("Replying SKIPPED for req. %d in instance %d\n", proposal.CommandId, i)
-			r.ReplyProposeTS(&genericsmrproto.ProposeReplyTS{
-				OK:        FALSE,
-				CommandId: proposal.CommandId,
-				Value:     state.Skipped,
-				Timestamp: proposal.Timestamp,
-			}, proposal.Reply)
-			r.instanceSpace[i].lb.clientProposal = nil
-		}
+		r.instanceSpace[i] = inst
+
+		// Persist skip (matches handleAccept / handleCommit behavior)
+		r.recordInstanceMetadata(inst)
 	}
+
+	r.sync()
+
+	// Broadcast skip so peers advance skippedTo[]
 	r.bcastSkip(start, end, -1)
+
+	// === CRITICAL ===
+	// This MUST be called AFTER all skipped instances are created,
+	// otherwise blockingInstance will never advance after recovery.
 	r.updateBlocking(start)
 }
+
+//func (r *Replica) handleDelayedSkip(ds *DelayedSkip) {
+//	r.skipsWaiting--
+//
+//	start := r.blockingInstance
+//	end := ds.skipEnd
+//
+//	dlog.Info("Force skipping %d-%d\n", start, end)
+//
+//	for i := start; i <= end; i++ {
+//		if r.instanceSpace[i] != nil {
+//			// Do not overwrite a real instance
+//			continue
+//		}
+//
+//		// create skipped instance
+//		r.instanceSpace[i] = &Instance{
+//			skipped:       true,
+//			nbInstSkipped: int(end-start)/r.N + 1,
+//			command:       nil,
+//			ballot:        0,
+//			status:        COMMITTED,
+//			lb:            nil,
+//		}
+//
+//		// reply to client if there was a proposal
+//		if r.instanceSpace[i].lb != nil && r.instanceSpace[i].lb.clientProposal != nil {
+//			proposal := r.instanceSpace[i].lb.clientProposal
+//			dlog.Printf("Replying SKIPPED for req. %d in instance %d\n", proposal.CommandId, i)
+//			r.ReplyProposeTS(&genericsmrproto.ProposeReplyTS{
+//				OK:        FALSE,
+//				CommandId: proposal.CommandId,
+//				Value:     state.Skipped,
+//				Timestamp: proposal.Timestamp,
+//			}, proposal.Reply)
+//			r.instanceSpace[i].lb.clientProposal = nil
+//		}
+//	}
+//	r.bcastSkip(start, end, -1)
+//	r.updateBlocking(start)
+//}
 
 func (r *Replica) handleCommit(commit *menciusproto.Commit) {
 	inst := r.instanceSpace[commit.Instance]

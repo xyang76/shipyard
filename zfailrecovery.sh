@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Get the ID passed as an argument
-num_iterations=20
+num_iterations=1
 sleep_time=30
 method="$1"
 # Array to store PIDs
