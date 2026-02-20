@@ -299,12 +299,13 @@ func (c *BaseClient) getConn(reqId int32, key state.Key) int {
 		c.mu.Unlock()
 
 		if leader == -1 {
-			// ✅ only start ONE findLoop per shard
 			if !searching {
 				c.mu.Lock()
-				c.searching[sid] = true
+				if !c.searching[sid] { // double check after lock
+					c.searching[sid] = true
+					go c.findLoop(sid)
+				}
 				c.mu.Unlock()
-				go c.findLoop(sid)
 			}
 			return -1
 		}

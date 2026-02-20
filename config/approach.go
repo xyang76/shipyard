@@ -24,8 +24,8 @@ const (
 	MultiRaft
 	Raft
 	EPaxos
-	GPaxos
 	Mencius
+	GPaxos
 	Paxos
 	Base
 )

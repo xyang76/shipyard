@@ -83,48 +83,60 @@ func (c *BaseConn) PeriodicalFlush() {
 
 func (c *BaseConn) SendLoop() {
 	for {
-		item := <-c.sendCh
+		select {
+		case item := <-c.sendCh:
+			dlog.Print("RID %v now: inFlight=%v conn=%v",
+				c.rid, c.writeCounter-c.finishCounter, c.conn != nil)
+			skipped := false
+			for {
+				c.mu.Lock()
+				inFlight := c.writeCounter - c.finishCounter
+				conn := c.conn
+				writer := c.writer
+				c.mu.Unlock()
 
-		for {
-			c.mu.Lock()
-			inFlight := c.writeCounter - c.finishCounter
-			conn := c.conn
-			writer := c.writer
-			c.mu.Unlock()
+				if conn != nil && writer != nil && inFlight < int(c.maxPending) {
+					break
+				}
 
-			if conn != nil && writer != nil && inFlight < int(c.maxPending) {
-				break
+				// if leader is unknown, skip this command
+				if conn == nil || writer == nil {
+					skipped = true
+					c.notify.notifyCommandSkip(item.CommandId)
+					break
+				}
+
+				time.Sleep(50 * time.Microsecond)
+			}
+			if skipped {
+				continue
 			}
 
-			time.Sleep(50 * time.Microsecond)
-		}
-
-		c.writerMu.Lock()
-		err := genericsmr.WriteWithTimeout(c.conn, func() error {
-			if err := c.writer.WriteByte(genericsmrproto.PROPOSE); err != nil {
-				return err
-			}
-			item.Marshal(c.writer)
-			c.writeCounter++
-			if c.writeCounter%100 == 0 {
-				if err := c.writer.Flush(); err != nil {
+			c.writerMu.Lock()
+			err := genericsmr.WriteWithTimeout(c.conn, func() error {
+				if err := c.writer.WriteByte(genericsmrproto.PROPOSE); err != nil {
 					return err
 				}
-			}
-			return nil
-		})
-		c.writerMu.Unlock()
+				item.Marshal(c.writer)
+				c.writeCounter++
+				if c.writeCounter%100 == 0 {
+					if err := c.writer.Flush(); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			c.writerMu.Unlock()
 
-		if err != nil {
-			c.notify.notifyConnectFail(c.rid, err)
-			c.notify.notifyCommandFail(item, err)
-			c.Disconnect()
+			if err != nil {
+				c.notify.notifyConnectFail(c.rid, err)
+				c.notify.notifyCommandFail(item, err)
+				c.Disconnect()
+				continue
+			}
+		case <-time.After(50 * time.Millisecond):
 			continue
 		}
-
-		//c.mu.Lock()
-		//c.writeCounter++
-		//c.mu.Unlock()
 	}
 }
 

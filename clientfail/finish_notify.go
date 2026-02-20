@@ -81,7 +81,7 @@ func (n *FinishNotify) notifyCommandSkip(reqID int32) {
 	n.roundArr[r]++
 	arrivals := n.roundArr[r]
 	n.mu.Unlock()
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(1 * time.Millisecond)
 	if arrivals == int64(n.numReqs) {
 		n.signalDone(r)
 	}
