@@ -8,7 +8,6 @@ import (
 	"Mix/raft"
 	"Mix/state"
 	"fmt"
-	"sort"
 	"sync"
 	"time"
 )
@@ -151,7 +150,7 @@ func (r *ShardedRaft) runElectionTimer() {
 
 				if state == Candidate || state == Follower {
 					if elapsed >= timeoutDuration {
-						dlog.Print("%v restart election due to timeout %v:%v", r.getShardInfo(), elapsed, timeoutDuration)
+						dlog.Info("%v restart election due to timeout %v:%v", r.getShardInfo(), elapsed, timeoutDuration)
 						r.startElection()
 					}
 				}
@@ -354,49 +353,6 @@ func (r *ShardedRaft) handleAppendEntriesReply(reply *raft.AppendEntriesReply) {
 			dlog.Print("AppendEntries reply from %d !success: follower last log = %d, nextIndex := %d",
 				peerId, reply.LastLogIndex, newNextIndex)
 		}
-	}
-}
-
-func (r *ShardedRaft) updateCommitIndexRaft() {
-	peers := len(r.peerIds)
-
-	// Collect matchIndex from followers + leader
-	values := make([]int, 0, peers+1)
-	for _, pid := range r.peerIds {
-		values = append(values, int(r.matchIndex[pid]))
-	}
-	values = append(values, int(r.log.Size()-1)) // leader itself
-
-	// Sort to find majority index
-	sort.Ints(values)
-
-	n := peers + 1
-	majorityIndex := values[n/2] // works for both even and odd
-
-	// Raft rule: only commit entries from current term
-	// Walk backward until term matches or commitIndex reached
-	ci := r.commitIndex
-
-	if r.log.Get(int32(majorityIndex)).Term == r.currentTerm {
-		r.commitIndex = max(int32(majorityIndex), r.commitIndex)
-	} else {
-		for i := int32(majorityIndex); i > ci; i-- {
-			if r.log.Get(i).Term == r.currentTerm {
-				r.commitIndex = i
-				break
-			}
-		}
-	}
-
-	//for i := int32(majorityIndex); i > ci; i-- {
-	//	if r.log.Get(i).Term == r.currentTerm {
-	//		r.commitIndex = i
-	//		break
-	//	}
-	//}
-
-	if r.commitIndex > ci {
-		r.commitLog(ci, r.commitIndex)
 	}
 }
 
@@ -613,7 +569,7 @@ func (r *ShardedRaft) getShardInfo() string {
 
 func (r *ShardedRaft) handlePropose(propose *genericsmr.Propose) {
 	if r.role != Leader {
-		preply := &genericsmrproto.ProposeReplyTS{config.FALSE, propose.CommandId, state.NOTLeader, 0}
+		preply := &genericsmrproto.ProposeReplyTS{config.FALSE, propose.CommandId, state.NOTLeader, int64(r.shard)}
 		r.replica.ReplyProposeTS(preply, propose.Reply)
 		return
 	}

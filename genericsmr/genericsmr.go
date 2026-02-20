@@ -472,7 +472,7 @@ func (r *Replica) SendMsgFailProne(peerId int32, code uint8, msg fastrpc.Seriali
 	conn := r.Peers[peerId]
 	w := r.PeerWriters[peerId]
 	if conn == nil || w == nil || !r.Alive[peerId] {
-		dlog.Info("%d->%d connection is lost, [%v, %v, %v]", r.Id, peerId, conn == nil, w == nil, !r.Alive[peerId])
+		dlog.Print("%d->%d connection is lost, [%v, %v, %v]", r.Id, peerId, conn == nil, w == nil, !r.Alive[peerId])
 		return
 	}
 

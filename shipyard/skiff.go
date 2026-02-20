@@ -225,7 +225,7 @@ func (r *Skiff) executeCommands() {
 
 func (r *Skiff) handlePropose(propose *genericsmr.Propose) {
 	if r.role != Leader {
-		preply := &genericsmrproto.ProposeReplyTS{config.FALSE, propose.CommandId, state.NOTLeader, 0}
+		preply := &genericsmrproto.ProposeReplyTS{config.FALSE, propose.CommandId, state.NOTLeader, int64(r.shard)}
 		r.replica.ReplyProposeTS(preply, propose.Reply)
 		return
 	}

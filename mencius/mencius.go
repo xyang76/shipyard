@@ -502,8 +502,7 @@ func (r *Replica) handlePrepare(prepare *menciusproto.Prepare) {
 }
 
 func (r *Replica) timerHelper(ds *DelayedSkip) {
-	//time.Sleep(WAIT_BEFORE_SKIP_MS * time.Microsecond)
-	time.Sleep(time.Duration(*config.MSleepTime) * time.Microsecond)
+	time.Sleep(WAIT_BEFORE_SKIP_MS * time.Microsecond)
 	r.delayedSkipChan <- ds
 }
 

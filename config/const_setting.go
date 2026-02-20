@@ -21,7 +21,7 @@ var NumNodes *int = flag.Int("N", 5, "Number of replicas. Defaults to 3.")
 var Procs *int = flag.Int("p", 2, "GOMAXPROCS. Defaults to 2")
 
 // Shards
-var ShardNum *int = flag.Int("s", 3, "Number of shards. Only used for multi-raft and shipyard.")
+var ShardNum *int = flag.Int("s", 9, "Number of shards. Only used for multi-raft and shipyard.")
 var ShardStatus *bool = flag.Bool("status", false, "Show shard leading status.")
 var SeperateClientPort *bool = flag.Bool("sp", true, "Seperate client ports and peer ports.")
 
@@ -36,7 +36,6 @@ var AutoBalance *int = flag.Int("ab", 1, "auto balance")
 var Balanced *int = flag.Int("b", 0, "balanced")
 var PrintIt *int = flag.Int("pp", 1, "auto balance")
 var Recovered *int = flag.Int("rec", 0, "auto balance")
-var MSleepTime *int = flag.Int("msl", 50, "msleep time")
 
 // Client
 var ReqsNum *int = flag.Int("q", 1000, "Total number of requests. Defaults to 5000.")

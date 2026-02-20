@@ -23,7 +23,7 @@ type Apportion struct {
 
 func NewApportion(replica *Replica) *Apportion {
 	app := &Apportion{
-		typ:         config.TMastered,
+		typ:         config.CurrentApportionType,
 		replica:     replica,
 		threshold:   0,
 		timeCount:   1,
@@ -35,10 +35,12 @@ func NewApportion(replica *Replica) *Apportion {
 		app.StartTimer()
 	}
 	switch app.typ {
-	case config.TFrequency:
-		app.threshold = 1000
+	case config.TDFrequency:
+		app.threshold = 20000
 	case config.TUsage:
 		app.threshold = 20
+	case config.TSFrequency:
+		app.threshold = 20000
 	}
 	return app
 }
@@ -63,21 +65,35 @@ func (a *Apportion) StartTimer() {
 }
 
 func encodeApportion(val int) int {
-	//val := a.value()
-	invert := ^val & 0xFF
-	return invert
-	//return (invert << 16) | rand.Intn(len(a.replica.peerIds))*10
+	if config.CurrentApportionType == config.TMastered {
+		//val := a.value()
+		invert := ^val & 0xFF
+		return invert
+		//return (invert << 16) | rand.Intn(len(a.replica.peerIds))*10
+	} else if config.CurrentApportionType == config.TSFrequency {
+		return val
+	} else if config.CurrentApportionType == config.TDFrequency {
+		return val
+	}
+	return val
 }
 
 func decodeApportion(apportion int) int {
 	//val := ^(apportion >> 16) & 0xFF
 	//return val
-	return ^apportion & 0xFF
+	if config.CurrentApportionType == config.TMastered {
+		return ^apportion & 0xFF
+	} else if config.CurrentApportionType == config.TSFrequency {
+		return apportion
+	} else if config.CurrentApportionType == config.TDFrequency {
+		return apportion
+	}
+	return apportion
 }
 
 func (a *Apportion) value() int {
 	switch a.typ {
-	case config.TFrequency:
+	case config.TDFrequency:
 		return a.exeCommands / a.timeCount
 	case config.TUsage:
 		return a.cpuUsage * 100 / a.timeCount
@@ -85,6 +101,8 @@ func (a *Apportion) value() int {
 		return a.replica.getCurrentLeaderSize()
 	case config.TRandom:
 		return rand.Intn(len(a.replica.peerIds) * 10)
+	case config.TSFrequency:
+		return a.replica.getCurrentLeaderFrequency()
 	}
 	return 0
 }
@@ -96,7 +114,9 @@ func (a *Apportion) IncExecuteCommand() {
 func (a *Apportion) Imbalance(apportion int) bool {
 	actualNum := decodeApportion(apportion)
 	switch a.typ {
-	case config.TFrequency:
+	case config.TDFrequency:
+		return actualNum-a.threshold-a.value() > 0
+	case config.TSFrequency:
 		return actualNum-a.threshold-a.value() > 0
 	case config.TUsage:
 		return actualNum-a.threshold-a.value() > 0

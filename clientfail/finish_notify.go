@@ -11,6 +11,7 @@ import (
 )
 
 type FinishNotify struct {
+	base    *BaseClient
 	success int64
 	failed  int64
 	skipped int64
@@ -25,27 +26,30 @@ type FinishNotify struct {
 	mu         sync.Mutex
 }
 
-func NewFinishNotify(round int, numReqs int, shards *shard.ShardInfo) *FinishNotify {
+func NewFinishNotify(base *BaseClient, round int, numReqs int) *FinishNotify {
 	done := make([]chan struct{}, round)
 	for i := 0; i < round; i++ {
 		done[i] = make(chan struct{}) // close-only
 	}
 	return &FinishNotify{
+		base:       base,
 		replyTimes: make([]int64, round),
 		roundArr:   make([]int64, round),
 		done:       done,
 		round:      round,
 		numReqs:    numReqs,
-		shards:     shards,
+		shards:     base.shards,
 	}
 }
 
-func (n *FinishNotify) notifyConnectFail(err error) {
-	dlog.Info("connect fail %v", err)
+func (n *FinishNotify) notifyConnectFail(rid int, err error) {
+	dlog.Info("connect fail (replica:%v) %v", rid, err)
+	n.base.removeLeader(rid)
 }
 
 func (n *FinishNotify) notifyInvalidLeader(rid int, reply *genericsmrproto.ProposeReplyTS, err error) {
-	dlog.Info("Received %v InvalidLeader reply %v of replica: err %v", rid, reply, err)
+	dlog.Info("Rid:%v received invalidLeader reply %v, sid %v of err %v", rid, reply, reply.Timestamp, err)
+	//shard := reply.Timestamp
 }
 
 func (n *FinishNotify) notifyCommandFinish(reply *genericsmrproto.ProposeReplyTS) {
@@ -69,7 +73,7 @@ func (n *FinishNotify) notifyCommandFinish(reply *genericsmrproto.ProposeReplyTS
 }
 
 func (n *FinishNotify) notifyCommandSkip(reqID int32) {
-	dlog.Info("Received Command skip")
+	dlog.Print("Received Command skip %v", reqID)
 
 	r := int(reqID) / n.numReqs
 	n.mu.Lock()
@@ -77,7 +81,7 @@ func (n *FinishNotify) notifyCommandSkip(reqID int32) {
 	n.roundArr[r]++
 	arrivals := n.roundArr[r]
 	n.mu.Unlock()
-
+	time.Sleep(100 * time.Millisecond)
 	if arrivals == int64(n.numReqs) {
 		n.signalDone(r)
 	}
@@ -86,8 +90,14 @@ func (n *FinishNotify) notifyCommandSkip(reqID int32) {
 func (n *FinishNotify) notifyCommandFail(cmd *genericsmrproto.Propose, err error) {
 	dlog.Info("Received Command fail %v", err)
 	n.mu.Lock()
+	r := int(cmd.CommandId) / n.numReqs
 	n.failed++
+	n.roundArr[r]++
+	arrivals := n.roundArr[r]
 	n.mu.Unlock()
+	if arrivals == int64(n.numReqs) {
+		n.signalDone(r)
+	}
 }
 
 // minimal helper to avoid double-close
@@ -103,4 +113,8 @@ func (n *FinishNotify) signalDone(r int) {
 func (n *FinishNotify) printInfo() {
 	fmt.Printf("Success so far: %d, skipped:%v, failed:%v\n",
 		n.success, n.skipped, n.failed)
+}
+
+func (n *FinishNotify) notifyLeaderReset(idx int, shard int32) {
+	dlog.Info("Received leader reset %v of shard %v", idx, shard)
 }

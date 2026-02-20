@@ -81,12 +81,6 @@ func (r *Replica) run() {
 	//counter := 0
 	for !r.Shutdown {
 		select {
-		//case <-tick.C:
-		//	counter++
-		//	if counter%50 == 0 {
-		//		printMemStats()
-		//	}
-
 		case prop := <-r.ProposeChan:
 			// got a client propose
 			dlog.Printf("MultiRaft replica got proposal Op=%d Id=%d\n", prop.Command.Op, prop.CommandId)
@@ -169,15 +163,17 @@ func (r *Replica) handlePropose(propose *genericsmr.Propose) {
 
 	// Special command to identify the leader
 	if propose.CommandId == config.IdentifyLeader {
+		shardId := int64(-1)
 		if sid, err := r.shardInfo.GetShardId(propose.Command.K); err == nil {
+			shardId = int64(sid)
 			if shard, ok := r.shards[sid]; ok && shard.role == Leader {
-				preply := &genericsmrproto.ProposeReplyTS{config.TRUE, -1, state.ISLeader, 0}
+				preply := &genericsmrproto.ProposeReplyTS{config.TRUE, -1, state.ISLeader, shardId}
 				r.ReplyProposeTS(preply, propose.Reply)
 				return
 			}
 		}
 
-		preply := &genericsmrproto.ProposeReplyTS{config.FALSE, -1, state.NOTLeader, 0}
+		preply := &genericsmrproto.ProposeReplyTS{config.FALSE, -1, state.NOTLeader, shardId}
 		r.ReplyProposeTS(preply, propose.Reply)
 		return
 	}

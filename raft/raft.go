@@ -552,7 +552,7 @@ func (r *Replica) handlePropose(propose *genericsmr.Propose) {
 	dlog.Print("%d :%v received propose %v\n", r.Id, r.role, propose.Command)
 
 	if r.role != Leader {
-		preply := &genericsmrproto.ProposeReplyTS{config.FALSE, propose.CommandId, state.NOTLeader, 0}
+		preply := &genericsmrproto.ProposeReplyTS{config.FALSE, propose.CommandId, state.NOTLeader, -1}
 		r.ReplyProposeTS(preply, propose.Reply)
 		return
 	}
@@ -598,7 +598,7 @@ func (r *Replica) handleRWPropose(propose *genericsmr.Propose) {
 			config.FALSE,
 			propose.CommandId,
 			state.NOTLeader,
-			0,
+			-1,
 		}
 		r.ReplyProposeTS(preply, propose.Reply)
 		return

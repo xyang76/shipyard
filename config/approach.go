@@ -9,9 +9,10 @@ type ApportionType int
 
 const (
 	TRandom ApportionType = iota
-	TFrequency
-	TUsage
 	TMastered
+	TSFrequency
+	TDFrequency
+	TUsage
 )
 
 var CurrentApportionType = TMastered

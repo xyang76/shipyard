@@ -203,15 +203,17 @@ func (r *Replica) handlePropose(propose *genericsmr.Propose) {
 
 	// Special command to identify the leader
 	if propose.CommandId == config.IdentifyLeader {
+		shardId := int64(-1)
 		if sid, err := r.shardInfo.GetShardId(propose.Command.K); err == nil {
+			shardId = int64(sid)
 			if shard, ok := r.shards[sid]; ok && shard.role == Leader {
-				preply := &genericsmrproto.ProposeReplyTS{config.TRUE, -1, state.ISLeader, 0}
+				preply := &genericsmrproto.ProposeReplyTS{config.TRUE, -1, state.ISLeader, shardId}
 				r.ReplyProposeTS(preply, propose.Reply)
 				return
 			}
 		}
 
-		preply := &genericsmrproto.ProposeReplyTS{config.FALSE, -1, state.NOTLeader, 0}
+		preply := &genericsmrproto.ProposeReplyTS{config.FALSE, -1, state.NOTLeader, shardId}
 		r.ReplyProposeTS(preply, propose.Reply)
 		return
 	}
@@ -352,6 +354,33 @@ func (r *Replica) getCurrentLeaderSize() int {
 	return size
 }
 
+func (r *Replica) getCurrentLeaderFrequency() int {
+	frequency := 0
+	for _, sid := range r.leadingShards {
+		switch sid {
+		case 0:
+			frequency += 29925 //E,T,A
+		case 1:
+			frequency += 21222 //O,I,N
+		case 2:
+			frequency += 18408
+		case 3:
+			frequency += 11060
+		case 4:
+			frequency += 7524
+		case 5:
+			frequency += 6217
+		case 6:
+			frequency += 4399
+		case 7:
+			frequency += 1075
+		case 8:
+			frequency += 169
+		}
+	}
+	return frequency
+}
+
 func (r *Replica) changeRole(shard int32, role SkiffState) {
 	if role == Leader {
 		r.mu.Lock()
@@ -430,9 +459,10 @@ func (r *Replica) needBalance(shard int32, apportion int32) bool {
 func (r *Replica) checkBalance(shard int32, leaderId int32, apportion int32, skiff *Skiff) {
 	if config.Auto_Balance && r.apportion.Imbalance(int(apportion)) && !r.balancing {
 		r.balancing = true
-		t := decodeApportion(int(apportion))
-		s := decodeApportion(int(skiff.currentApportion))
-		dlog.Info("rep:%v-shard:%v need balance {received leader:%v-app:%v vs cur:%v}", r.Id, shard, leaderId, t, s)
+		//t := decodeApportion(int(apportion))
+		//s := decodeApportion(int(skiff.currentApportion))
+		//v := r.apportion.value()
+		//dlog.Info("rep:%v-shard:%v need balance {received leader:%v-app:%v vs cur:%v, actual:%v}", r.Id, shard, leaderId, t, s, v)
 		time.AfterFunc(time.Duration(*config.BalanceRegenerate)*time.Millisecond, func() {
 			r.balancing = false
 		})

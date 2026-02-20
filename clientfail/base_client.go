@@ -42,20 +42,26 @@ func NewBaseClient(replicas []string) *BaseClient {
 			clientAddrs[i] = fmt.Sprintf("%s:%d", host, port+2000) // client port
 		}
 	}
+	shards := shard.NewShardInfo()
+	leaders := make(map[int32]int, shards.ShardNum)
+	for _, sid := range shards.Shards {
+		leaders[sid] = -1
+	}
 	return &BaseClient{
 		replicas:  clientAddrs,
 		conns:     make(map[int32]*BaseConn),
-		shards:    shard.NewShardInfo(),
+		shards:    shards,
 		rng:       rand.New(rand.NewSource(time.Now().UnixNano())),
 		discovery: config.NeedLeaderDiscovery(),
-		leaders:   make(map[int32]int),
+		searching: make(map[int32]bool),
+		leaders:   leaders,
 	}
 }
 
 func (c *BaseClient) ConnectAll() {
 	reqsPerRound := *config.ReqsNum
 	round := *config.Rounds
-	notify := NewFinishNotify(round, reqsPerRound, c.shards)
+	notify := NewFinishNotify(c, round, reqsPerRound)
 	c.notify = notify
 	for i := 0; i < len(c.replicas); i++ {
 		conn := NewBaseConn(c.replicas[i], i, notify)
@@ -119,6 +125,97 @@ func (c *BaseClient) findLeader(sid int32) int {
 
 	return -1
 }
+func (c *BaseClient) findLeaderAsync(sid int32, finishChan chan struct{}) {
+	var wg sync.WaitGroup
+
+	for idx, addr := range c.replicas {
+		idx := idx   // ✅ capture
+		addr := addr // ✅ capture
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			conn, err := net.DialTimeout("tcp", addr, genericsmr.CONN_TIMEOUT)
+			if err != nil {
+				return
+			}
+			defer conn.Close()
+
+			r := bufio.NewReader(conn)
+			w := bufio.NewWriter(conn)
+
+			args := genericsmrproto.Propose{
+				CommandId: config.IdentifyLeader,
+				Command: state.Command{
+					Op: state.GET,
+					K:  state.Key(sid),
+				},
+			}
+
+			err = genericsmr.WriteWithTimeout(conn, func() error {
+				if err := w.WriteByte(genericsmrproto.PROPOSE); err != nil {
+					return err
+				}
+				args.Marshal(w)
+				return w.Flush()
+			})
+			if err != nil {
+				return
+			}
+
+			reply := new(genericsmrproto.ProposeReplyTS)
+			err = genericsmr.ReadWithTimeout(conn, func() error {
+				return reply.Unmarshal(r)
+			})
+			if err != nil {
+				return
+			}
+
+			if reply.OK != 0 {
+				c.mu.Lock()
+				dlog.Info("Leader for shard %d found at %v--%s\n", sid, idx, addr)
+				if c.leaders[sid] == -1 { // ✅ install once
+					c.leaders[sid] = idx
+					c.notify.notifyLeaderReset(idx, sid)
+				}
+				c.mu.Unlock()
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(finishChan)
+	}()
+}
+
+func (c *BaseClient) findLoop(sid int32) {
+	defer func() {
+		// ✅ clear searching ONLY when goroutine exits
+		c.mu.Lock()
+		c.searching[sid] = false
+		c.mu.Unlock()
+	}()
+
+	for {
+		c.mu.Lock()
+		leader := c.leaders[sid]
+		c.mu.Unlock()
+
+		if leader != -1 {
+			return // ✅ stop forever
+		}
+
+		dlog.Info("Start leader searching for shard %v...", sid)
+
+		finishChan := make(chan struct{})
+		c.findLeaderAsync(sid, finishChan)
+		<-finishChan
+
+		time.Sleep(1 * time.Second)
+	}
+}
 
 func (c *BaseClient) StartTests() {
 	elapsed_sum := int64(0)
@@ -139,6 +236,7 @@ func (c *BaseClient) StartTests() {
 			connId := int32(c.getConn(reqID, key))
 			if connId == -1 {
 				notify.notifyCommandSkip(reqID)
+				reqID++
 				continue
 			}
 			conn := c.conns[connId]
@@ -194,17 +292,25 @@ func (c *BaseClient) StartTests() {
 func (c *BaseClient) getConn(reqId int32, key state.Key) int {
 	if c.discovery {
 		sid, _ := c.shards.GetShardId(key)
+
 		c.mu.Lock()
-		leader, exists := c.leaders[sid]
+		leader := c.leaders[sid]
+		searching := c.searching[sid]
 		c.mu.Unlock()
-		if !exists {
-			return c.findLeader(sid)
+
+		if leader == -1 {
+			// ✅ only start ONE findLoop per shard
+			if !searching {
+				c.mu.Lock()
+				c.searching[sid] = true
+				c.mu.Unlock()
+				go c.findLoop(sid)
+			}
+			return -1
 		}
 		return leader
-	} else {
-		return int(reqId) % c.shards.ShardNum
 	}
-	return 0
+	return int(reqId) % c.shards.ShardNum
 }
 
 func (c *BaseClient) PrintInfo() {
@@ -223,4 +329,15 @@ func (c *BaseClient) PrintInfo() {
 
 func (c *BaseClient) RandomValue() int {
 	return c.rng.Intn(101) // 0..100 inclusive
+}
+
+func (c *BaseClient) removeLeader(rid int) {
+	c.mu.Lock()
+	for k, v := range c.leaders {
+		if v == rid {
+			dlog.Info("reset leader of replica:%v shard:%v to -1", rid, k)
+			c.leaders[k] = -1
+		}
+	}
+	c.mu.Unlock()
 }

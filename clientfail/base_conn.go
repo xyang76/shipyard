@@ -75,7 +75,7 @@ func (c *BaseConn) PeriodicalFlush() {
 		c.writerMu.Unlock()
 
 		if err != nil {
-			c.notify.notifyConnectFail(err)
+			c.notify.notifyConnectFail(c.rid, err)
 			c.Disconnect()
 		}
 	}
@@ -116,7 +116,7 @@ func (c *BaseConn) SendLoop() {
 		c.writerMu.Unlock()
 
 		if err != nil {
-			c.notify.notifyConnectFail(err)
+			c.notify.notifyConnectFail(c.rid, err)
 			c.notify.notifyCommandFail(item, err)
 			c.Disconnect()
 			continue
@@ -251,7 +251,7 @@ func (c *BaseConn) replyReader() {
 			if ne, ok := err.(net.Error); ok && ne.Timeout() {
 				continue
 			}
-			c.notify.notifyConnectFail(err)
+			c.notify.notifyConnectFail(c.rid, err)
 			c.Disconnect()
 			return
 		}

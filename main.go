@@ -26,13 +26,13 @@ func main() {
 		server.Start()
 	} else if config.CurrentInstance == config.Client {
 		client.StartRecoveryShardClient()
+	} else if config.CurrentInstance == config.ClientWithFail {
+		//clientsep.StartClient2()
+		clientfail.StartFailClient()
 	} else if config.CurrentInstance == config.ClientPerSec {
 		//client.OneReq()
 		client.StartRecoveryShardClientSec()
 		//clientsep.StartClient1()
-	} else if config.CurrentInstance == config.ClientWithFail {
-		//clientsep.StartClient2()
-		clientfail.StartFailClient()
 	}
 	//
 	//else if config.CurrentInstance == config.ClientWithFail {
